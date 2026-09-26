@@ -15,111 +15,130 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen">
 
-  <!-- টপ নেভিগেশন বার -->
-  <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shadow-inner">
-          <i class="fa-solid fa-robot"></i>
+  <!-- ==================== ১. লক স্ক্রিন / লগইন মডাল (পাসওয়ার্ড ছাড়া কিছু দেখা যাবে না) ==================== -->
+  <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
+      <div class="absolute -top-12 -right-12 w-36 h-36 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="text-center space-y-3">
+        <div class="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-2xl mx-auto shadow-inner">
+          <i class="fa-solid fa-lock"></i>
         </div>
-        <div>
-          <h1 class="text-lg font-bold text-white tracking-wide">GroupControl Panel</h1>
-          <p class="text-xs text-sky-400 font-medium">Specific Group Control & Moderation</p>
-        </div>
+        <h2 class="text-xl font-bold text-white tracking-wide">অ্যাডমিন অ্যাক্সেস লক</h2>
+        <p class="text-xs text-slate-400">প্যানেলটি ওপেন করতে অনুগ্রহ করে আপনার সিক্রেট পাসওয়ার্ড দিন।</p>
       </div>
 
-      <!-- পাসওয়ার্ড এবং সার্ভার কনফিগ বার -->
-      <div class="flex items-center gap-2">
+      <form onsubmit="handleLogin(event)" class="mt-6 space-y-4">
         <div class="relative">
-          <input type="password" id="adminPassword" placeholder="অ্যাডমিন পাসওয়ার্ড..."
-            class="bg-slate-950 border border-slate-700 focus:border-sky-500 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm text-slate-100 outline-none w-44 sm:w-56 transition">
-          <button onclick="togglePasswordVisibility()" class="absolute right-3 top-2 text-slate-400 hover:text-slate-200 text-xs">
-            <i id="eyeIcon" class="fa-regular fa-eye"></i>
+          <input type="password" id="loginPassword" placeholder="অ্যাডমিন পাসওয়ার্ড লিখুন..." autofocus
+            class="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 px-4 py-3 rounded-xl text-sm text-slate-100 outline-none transition pr-10">
+          <button type="button" onclick="togglePasswordVisibility('loginPassword', 'lockEyeIcon')" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 text-sm">
+            <i id="lockEyeIcon" class="fa-regular fa-eye"></i>
           </button>
         </div>
-        <button onclick="saveAndConnect()" id="connectBtn"
-          class="bg-sky-600 hover:bg-sky-500 active:scale-95 text-white px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-sky-600/20">
-          <i class="fa-solid fa-link"></i> <span>কানেক্ট</span>
+
+        <button type="submit" id="loginBtn"
+          class="w-full bg-sky-600 hover:bg-sky-500 active:scale-95 text-white py-3 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20">
+          <i class="fa-solid fa-key"></i> <span>আনলক করুন</span>
         </button>
-      </div>
+
+        <p id="loginError" class="text-xs text-rose-400 text-center hidden font-medium"></p>
+      </form>
     </div>
-  </header>
+  </div>
 
-  <!-- মেইন বডি কন্টেইনার -->
-  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
-
-    <!-- অ্যাড নিউ গ্রুপ সেকশন -->
-    <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-      <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-sky-500/5 rounded-full blur-2xl pointer-events-none"></div>
-
-      <div class="max-w-xl">
-        <h2 class="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
-          <i class="fa-solid fa-plus-circle text-sky-400"></i> নতুন অনুমোদিত গ্রুপ যোগ করুন
-        </h2>
-        <p class="text-xs text-slate-400 mt-1">
-          বট যে গ্রুপে অ্যাডমিন আছে, সেই গ্রুপের আইডি দিন। বটের মাধ্যমে গ্রুপের নাম স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে।
-        </p>
-      </div>
-
-      <div class="mt-4 flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1">
-          <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-slate-500 text-sm"></i>
-          <input type="text" id="newGroupId" placeholder="গ্রুপ আইডি দিন (যেমন: -100123456789)"
-            class="w-full bg-slate-950 border border-slate-700/80 focus:border-sky-500 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition text-slate-200">
-        </div>
-        <button onclick="addNewGroup()" id="addBtn"
-          class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
-          <i class="fa-solid fa-circle-plus"></i> যোগ করুন
-        </button>
-      </div>
-    </section>
-
-    <!-- স্পেসিফিক গ্রুপ কন্ট্রোল লিস্ট -->
-    <section class="space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div>
-          <h2 class="text-lg font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-shield-halved text-indigo-400"></i> Specific Group Control
-          </h2>
-          <p class="text-xs text-slate-400">অনুমোদিত গ্রুপসমূহ এবং তাদের অটোমেশন স্ট্যাটাস</p>
-        </div>
-        <span id="groupCountBadge" class="text-xs bg-slate-800 text-sky-400 px-3 py-1 rounded-full border border-slate-700 font-medium">
-          ০টি গ্রুপ সক্রিয়
-        </span>
-      </div>
-
-      <!-- গ্রুপ কার্ড গ্রিড -->
-      <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-        <div class="col-span-full py-16 text-center">
-          <div class="inline-flex p-4 rounded-full bg-slate-900 border border-slate-800 text-slate-500 text-2xl mb-3">
-            <i class="fa-solid fa-key"></i>
+  <!-- ==================== ২. মেইন অ্যাডমিন প্যানেল (লগইন ছাড়া ডিসপ্লে বন্ধ) ==================== -->
+  <div id="mainDashboard" class="hidden">
+    
+    <!-- টপ হেডার -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
+      <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shadow-inner">
+            <i class="fa-solid fa-robot"></i>
           </div>
-          <p class="text-sm text-slate-400 font-medium">উপরে অ্যাডমিন পাসওয়ার্ড দিয়ে 'কানেক্ট' বাটনে ক্লিক করুন।</p>
+          <div>
+            <h1 class="text-lg font-bold text-white tracking-wide">GroupControl Panel</h1>
+            <p class="text-xs text-sky-400 font-medium">Specific Group Control & Moderation</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+          <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> অথোরাইজড
+          </span>
+          <button onclick="handleLogout()" class="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800 text-rose-300 text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
+            <i class="fa-solid fa-right-from-bracket"></i> লগআউট
+          </button>
         </div>
       </div>
-    </section>
+    </header>
 
-  </main>
+    <!-- মেইন কন্টেন্ট -->
+    <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+      
+      <!-- নতুন গ্রুপ যোগ করার সেকশন -->
+      <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+        <div class="max-w-xl">
+          <h2 class="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+            <i class="fa-solid fa-plus-circle text-sky-400"></i> নতুন অনুমোদিত গ্রুপ যোগ করুন
+          </h2>
+          <p class="text-xs text-slate-400 mt-1">
+            বট যে গ্রুপে অ্যাডমিন আছে, সেই গ্রুপের আইডি দিন। গ্রুপের নাম স্বয়ংক্রিয়ভাবে সেভ হবে।
+          </p>
+        </div>
+
+        <div class="mt-4 flex flex-col sm:flex-row gap-3">
+          <div class="relative flex-1">
+            <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-slate-500 text-sm"></i>
+            <input type="text" id="newGroupId" placeholder="গ্রুপ আইডি দিন (যেমন: -100123456789)"
+              class="w-full bg-slate-950 border border-slate-700/80 focus:border-sky-500 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition text-slate-200">
+          </div>
+          <button onclick="addNewGroup()" id="addBtn"
+            class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+            <i class="fa-solid fa-circle-plus"></i> যোগ করুন
+          </button>
+        </div>
+      </section>
+
+      <!-- গ্রুপ লিস্ট সেকশন -->
+      <section class="space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-shield-halved text-indigo-400"></i> Specific Group Control
+            </h2>
+            <p class="text-xs text-slate-400">অনুমোদিত গ্রুপসমূহ এবং তাদের অটোমেশন স্ট্যাটাস</p>
+          </div>
+          <span id="groupCountBadge" class="text-xs bg-slate-800 text-sky-400 px-3 py-1 rounded-full border border-slate-700 font-medium">
+            ০টি গ্রুপ সক্রিয়
+          </span>
+        </div>
+
+        <!-- গ্রুপ কার্ড গ্রিড -->
+        <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+          <!-- ডায়নামিক কার্ড এখানে আসবে -->
+        </div>
+      </section>
+
+    </main>
+  </div>
 
   <script>
-
+    // আপনার আসল Render URL
     const BACKEND_URL = "https://group-protect-super-bot.onrender.com";
 
-    window.addEventListener('DOMContentLoaded', () => {
-      const savedPass = localStorage.getItem('tg_admin_password');
+    // পেজ লোড হলে সেশন চেক
+    window.addEventListener('DOMContentLoaded', async () => {
+      const savedPass = sessionStorage.getItem('tg_admin_password');
       if (savedPass) {
-        document.getElementById('adminPassword').value = savedPass;
-        loadGroups();
+        await verifyAndUnlock(savedPass);
       }
     });
 
-    function getPassword() {
-      return document.getElementById("adminPassword").value.trim();
-    }
-
-    function togglePasswordVisibility() {
-      const passInput = document.getElementById("adminPassword");
-      const eyeIcon = document.getElementById("eyeIcon");
+    function togglePasswordVisibility(inputId, iconId) {
+      const passInput = document.getElementById(inputId);
+      const eyeIcon = document.getElementById(iconId);
       if (passInput.type === "password") {
         passInput.type = "text";
         eyeIcon.className = "fa-regular fa-eye-slash";
@@ -129,21 +148,33 @@
       }
     }
 
-    async function saveAndConnect() {
-      const password = getPassword();
-      if (!password) return alert("দয়া করে অ্যাডমিন পাসওয়ার্ড লিখুন!");
-      localStorage.setItem('tg_admin_password', password);
-      await loadGroups();
+    async function handleLogin(e) {
+      e.preventDefault();
+      const password = document.getElementById("loginPassword").value.trim();
+      const loginBtn = document.getElementById("loginBtn");
+      const errorMsg = document.getElementById("loginError");
+
+      if (!password) {
+        errorMsg.innerText = "পাসওয়ার্ড দিন!";
+        errorMsg.classList.remove("hidden");
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ভেরিফাই হচ্ছে...`;
+      errorMsg.classList.add("hidden");
+
+      const success = await verifyAndUnlock(password);
+
+      if (!success) {
+        errorMsg.innerText = "ভুল পাসওয়ার্ড অথবা সার্ভার রেসপন্স করছে না!";
+        errorMsg.classList.remove("hidden");
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = `<i class="fa-solid fa-key"></i> <span>আনলক করুন</span>`;
+      }
     }
 
-    async function loadGroups() {
-      const password = getPassword();
-      if (!password) return;
-
-      const container = document.getElementById("groupsContainer");
-      const connectBtn = document.getElementById("connectBtn");
-      connectBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>কানেক্টিং...</span>`;
-
+    async function verifyAndUnlock(password) {
       try {
         const res = await fetch(`${BACKEND_URL}/api/groups`, {
           method: 'POST',
@@ -152,21 +183,42 @@
         });
         const data = await res.json();
 
-        if (!data.success) {
-          alert("ভুল পাসওয়ার্ড অথবা সার্ভার সমস্যা!");
-          container.innerHTML = `<div class="col-span-full py-10 text-center text-rose-400 text-sm">${data.message || 'অথেনটিকেশন ব্যর্থ!'}</div>`;
-          return;
+        if (data.success) {
+          sessionStorage.setItem('tg_admin_password', password);
+          document.getElementById("lockScreen").classList.add("hidden");
+          document.getElementById("mainDashboard").classList.remove("hidden");
+          renderGroups(data.groups);
+          return true;
         }
-
-        renderGroups(data.groups);
+        return false;
       } catch (err) {
-        container.innerHTML = `
-          <div class="col-span-full py-12 text-center text-slate-400 text-sm">
-            <p class="text-rose-400 font-semibold mb-1">সার্ভারে সংযোগ দেওয়া সম্ভব হয়নি!</p>
-            <p class="text-xs text-slate-500">Render ব্যাকএন্ড চালু আছে কি না এবং BACKEND_URL ঠিক আছে কি না নিশ্চিত করুন।</p>
-          </div>`;
-      } finally {
-        connectBtn.innerHTML = `<i class="fa-solid fa-link"></i> <span>কানেক্ট</span>`;
+        return false;
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem('tg_admin_password');
+      document.getElementById("loginPassword").value = "";
+      document.getElementById("mainDashboard").classList.add("hidden");
+      document.getElementById("lockScreen").classList.remove("hidden");
+    }
+
+    function getPassword() {
+      return sessionStorage.getItem('tg_admin_password') || "";
+    }
+
+    async function reloadGroups() {
+      const password = getPassword();
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/groups`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.success) renderGroups(data.groups);
+      } catch (err) {
+        console.error(err);
       }
     }
 
@@ -175,7 +227,6 @@
       const groupId = document.getElementById("newGroupId").value.trim();
       const addBtn = document.getElementById("addBtn");
 
-      if (!password) return alert("আগে উপরে পাসওয়ার্ড দিন!");
       if (!groupId) return alert("গ্রুপ আইডি দিন!");
 
       addBtn.disabled = true;
@@ -191,7 +242,7 @@
 
         if (data.success) {
           document.getElementById("newGroupId").value = "";
-          await loadGroups();
+          await reloadGroups();
         } else {
           alert(data.message || "গ্রুপ যোগ করা যায়নি!");
         }
@@ -204,8 +255,7 @@
     }
 
     async function deleteGroup(groupId, groupTitle) {
-      const promptConfirm = confirm(`আপনি কি নিশ্চিত '${groupTitle}' (${groupId}) গ্রুপটি রিমুভ করবেন?`);
-      if (!promptConfirm) return;
+      if (!confirm(`আপনি কি নিশ্চিত '${groupTitle}' (${groupId}) গ্রুপটি রিমুভ করবেন?`)) return;
 
       const password = getPassword();
       try {
@@ -216,12 +266,12 @@
         });
         const data = await res.json();
         if (data.success) {
-          await loadGroups();
+          await reloadGroups();
         } else {
           alert(data.message || "ডিলিট করা যায়নি!");
         }
       } catch (err) {
-        alert("ডিলিট রিকোয়েস্ট ফেইল করেছে!");
+        alert("ডিলিট রিকোয়েস্ট ব্যর্থ!");
       }
     }
 
@@ -230,8 +280,7 @@
       const input = document.getElementById(`user-${groupId}`);
       const userId = input.value.trim();
 
-      if (!password) return alert("পাসওয়ার্ড দেওয়া নেই!");
-      if (!userId) return alert("ইউজার আইডি (Numeric ID) প্রদান করুন!");
+      if (!userId) return alert("ইউজার আইডি (Numeric ID) দিন!");
 
       const btn = document.getElementById(`btn-admin-${groupId}`);
       btn.disabled = true;
