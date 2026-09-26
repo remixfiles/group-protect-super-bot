@@ -1,11 +1,330 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Telegram Bot - Specific Group Control Panel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Hind Siliguri', sans-serif;
+    }
+  </style>
 </head>
-<body>
-    
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+  <!-- টপ নেভিগেশন বার -->
+  <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shadow-inner">
+          <i class="fa-solid fa-robot"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white tracking-wide">GroupControl Panel</h1>
+          <p class="text-xs text-sky-400 font-medium">Specific Group Control & Moderation</p>
+        </div>
+      </div>
+
+      <!-- পাসওয়ার্ড এবং সার্ভার কনফিগ বার -->
+      <div class="flex items-center gap-2">
+        <div class="relative">
+          <input type="password" id="adminPassword" placeholder="অ্যাডমিন পাসওয়ার্ড..."
+            class="bg-slate-950 border border-slate-700 focus:border-sky-500 px-3.5 py-1.5 rounded-xl text-xs sm:text-sm text-slate-100 outline-none w-44 sm:w-56 transition">
+          <button onclick="togglePasswordVisibility()" class="absolute right-3 top-2 text-slate-400 hover:text-slate-200 text-xs">
+            <i id="eyeIcon" class="fa-regular fa-eye"></i>
+          </button>
+        </div>
+        <button onclick="saveAndConnect()" id="connectBtn"
+          class="bg-sky-600 hover:bg-sky-500 active:scale-95 text-white px-4 py-1.5 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-2 shadow-lg shadow-sky-600/20">
+          <i class="fa-solid fa-link"></i> <span>কানেক্ট</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- মেইন বডি কন্টেইনার -->
+  <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
+
+    <!-- অ্যাড নিউ গ্রুপ সেকশন -->
+    <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      <div class="absolute -right-10 -bottom-10 w-44 h-44 bg-sky-500/5 rounded-full blur-2xl pointer-events-none"></div>
+
+      <div class="max-w-xl">
+        <h2 class="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
+          <i class="fa-solid fa-plus-circle text-sky-400"></i> নতুন অনুমোদিত গ্রুপ যোগ করুন
+        </h2>
+        <p class="text-xs text-slate-400 mt-1">
+          বট যে গ্রুপে অ্যাডমিন আছে, সেই গ্রুপের আইডি দিন। বটের মাধ্যমে গ্রুপের নাম স্বয়ংক্রিয়ভাবে সংরক্ষিত হবে।
+        </p>
+      </div>
+
+      <div class="mt-4 flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-slate-500 text-sm"></i>
+          <input type="text" id="newGroupId" placeholder="গ্রুপ আইডি দিন (যেমন: -100123456789)"
+            class="w-full bg-slate-950 border border-slate-700/80 focus:border-sky-500 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition text-slate-200">
+        </div>
+        <button onclick="addNewGroup()" id="addBtn"
+          class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+          <i class="fa-solid fa-circle-plus"></i> যোগ করুন
+        </button>
+      </div>
+    </section>
+
+    <!-- স্পেসিফিক গ্রুপ কন্ট্রোল লিস্ট -->
+    <section class="space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div>
+          <h2 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-shield-halved text-indigo-400"></i> Specific Group Control
+          </h2>
+          <p class="text-xs text-slate-400">অনুমোদিত গ্রুপসমূহ এবং তাদের অটোমেশন স্ট্যাটাস</p>
+        </div>
+        <span id="groupCountBadge" class="text-xs bg-slate-800 text-sky-400 px-3 py-1 rounded-full border border-slate-700 font-medium">
+          ০টি গ্রুপ সক্রিয়
+        </span>
+      </div>
+
+      <!-- গ্রুপ কার্ড গ্রিড -->
+      <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+        <div class="col-span-full py-16 text-center">
+          <div class="inline-flex p-4 rounded-full bg-slate-900 border border-slate-800 text-slate-500 text-2xl mb-3">
+            <i class="fa-solid fa-key"></i>
+          </div>
+          <p class="text-sm text-slate-400 font-medium">উপরে অ্যাডমিন পাসওয়ার্ড দিয়ে 'কানেক্ট' বাটনে ক্লিক করুন।</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // আপনার Render ব্যাকএন্ড ডিপ্লয় হলে সেই URL এখানে প্রতিস্থাপন করবেন
+    const BACKEND_URL = "https://your-service-name.onrender.com";
+
+    // পেজ লোড হলে লোকালস্টোরেজ থেকে পাসওয়ার্ড রিকভার
+    window.addEventListener('DOMContentLoaded', () => {
+      const savedPass = localStorage.getItem('tg_admin_password');
+      if (savedPass) {
+        document.getElementById('adminPassword').value = savedPass;
+        loadGroups();
+      }
+    });
+
+    function getPassword() {
+      return document.getElementById("adminPassword").value.trim();
+    }
+
+    function togglePasswordVisibility() {
+      const passInput = document.getElementById("adminPassword");
+      const eyeIcon = document.getElementById("eyeIcon");
+      if (passInput.type === "password") {
+        passInput.type = "text";
+        eyeIcon.className = "fa-regular fa-eye-slash";
+      } else {
+        passInput.type = "password";
+        eyeIcon.className = "fa-regular fa-eye";
+      }
+    }
+
+    async function saveAndConnect() {
+      const password = getPassword();
+      if (!password) return alert("দয়া করে অ্যাডমিন পাসওয়ার্ড লিখুন!");
+      localStorage.setItem('tg_admin_password', password);
+      await loadGroups();
+    }
+
+    async function loadGroups() {
+      const password = getPassword();
+      if (!password) return;
+
+      const container = document.getElementById("groupsContainer");
+      const connectBtn = document.getElementById("connectBtn");
+      connectBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> <span>কানেক্টিং...</span>`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/groups`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+
+        if (!data.success) {
+          alert("ভুল পাসওয়ার্ড অথবা সার্ভার সমস্যা!");
+          container.innerHTML = `<div class="col-span-full py-10 text-center text-rose-400 text-sm">${data.message || 'অথেনটিকেশন ব্যর্থ!'}</div>`;
+          return;
+        }
+
+        renderGroups(data.groups);
+      } catch (err) {
+        container.innerHTML = `
+          <div class="col-span-full py-12 text-center text-slate-400 text-sm">
+            <p class="text-rose-400 font-semibold mb-1">সার্ভারে সংযোগ দেওয়া সম্ভব হয়নি!</p>
+            <p class="text-xs text-slate-500">Render ব্যাকএন্ড চালু আছে কি না এবং BACKEND_URL ঠিক আছে কি না নিশ্চিত করুন।</p>
+          </div>`;
+      } finally {
+        connectBtn.innerHTML = `<i class="fa-solid fa-link"></i> <span>কানেক্ট</span>`;
+      }
+    }
+
+    async function addNewGroup() {
+      const password = getPassword();
+      const groupId = document.getElementById("newGroupId").value.trim();
+      const addBtn = document.getElementById("addBtn");
+
+      if (!password) return alert("আগে উপরে পাসওয়ার্ড দিন!");
+      if (!groupId) return alert("গ্রুপ আইডি দিন!");
+
+      addBtn.disabled = true;
+      addBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> যোগ হচ্ছে...`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/groups/add`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, groupId })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          document.getElementById("newGroupId").value = "";
+          await loadGroups();
+        } else {
+          alert(data.message || "গ্রুপ যোগ করা যায়নি!");
+        }
+      } catch (err) {
+        alert("সার্ভার রিকোয়েস্ট ব্যর্থ হয়েছে!");
+      } finally {
+        addBtn.disabled = false;
+        addBtn.innerHTML = `<i class="fa-solid fa-circle-plus"></i> যোগ করুন`;
+      }
+    }
+
+    async function deleteGroup(groupId, groupTitle) {
+      const promptConfirm = confirm(`আপনি কি নিশ্চিত '${groupTitle}' (${groupId}) গ্রুপটি রিমুভ করবেন?`);
+      if (!promptConfirm) return;
+
+      const password = getPassword();
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/groups/delete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, groupId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await loadGroups();
+        } else {
+          alert(data.message || "ডিলিট করা যায়নি!");
+        }
+      } catch (err) {
+        alert("ডিলিট রিকোয়েস্ট ফেইল করেছে!");
+      }
+    }
+
+    async function makeAdmin(groupId) {
+      const password = getPassword();
+      const input = document.getElementById(`user-${groupId}`);
+      const userId = input.value.trim();
+
+      if (!password) return alert("পাসওয়ার্ড দেওয়া নেই!");
+      if (!userId) return alert("ইউজার আইডি (Numeric ID) প্রদান করুন!");
+
+      const btn = document.getElementById(`btn-admin-${groupId}`);
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/make-admin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, groupId, userId })
+        });
+        const data = await res.json();
+
+        alert(data.message);
+        if (data.success) input.value = "";
+      } catch (err) {
+        alert("মেম্বারকে অ্যাডমিন করতে সমস্যা হয়েছে!");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `Make Admin`;
+      }
+    }
+
+    function renderGroups(groups) {
+      const container = document.getElementById("groupsContainer");
+      const badge = document.getElementById("groupCountBadge");
+
+      badge.innerText = `${groups.length}টি গ্রুপ সক্রিয়`;
+
+      if (groups.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full py-16 text-center text-slate-500 bg-slate-900/30 rounded-2xl border border-dashed border-slate-800">
+            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-600"></i>
+            <p class="text-sm">কোনো অনুমোদিত গ্রুপ যোগ করা হয়নি। উপরের ফরম থেকে গ্রুপ আইডি দিয়ে যোগ করুন।</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = groups.map(g => `
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition duration-200">
+          <div>
+            <div class="flex items-start justify-between gap-3">
+              <div class="space-y-1">
+                <h3 class="text-base font-bold text-white flex items-center gap-2">
+                  <i class="fa-solid fa-users text-sky-400 text-xs"></i> ${g.groupTitle}
+                </h3>
+                <span class="inline-block text-xs font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                  ID: ${g.groupId}
+                </span>
+              </div>
+              <button onclick="deleteGroup('${g.groupId}', '${g.groupTitle}')" 
+                class="text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 active:scale-95 text-xs bg-rose-950/30 border border-rose-900/60 px-2.5 py-1 rounded-lg transition"
+                title="গ্রুপটি রিমুভ করুন">
+                <i class="fa-solid fa-trash-can"></i> রিমুভ
+              </button>
+            </div>
+
+            <!-- ফিচার ও রুলস স্ট্যাটাস -->
+            <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
+              <div class="flex items-center justify-between text-slate-300">
+                <span class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Spam Control
+                </span>
+                <span class="text-slate-500 font-medium">Link & Mention Blocked (3D Mute)</span>
+              </div>
+              <div class="flex items-center justify-between text-slate-300">
+                <span class="flex items-center gap-2">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Flood Control
+                </span>
+                <span class="text-slate-500 font-medium">Max 5 msg / 3s (5M Mute)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Make Admin কন্ট্রোল -->
+          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
+            <div class="flex items-center justify-between text-xs text-slate-400">
+              <label class="font-medium">Make Admin (User Numeric ID):</label>
+              <span class="text-[10px] text-slate-500">Auto Permissions</span>
+            </div>
+            <div class="flex gap-2">
+              <input type="text" id="user-${g.groupId}" placeholder="ইউজার আইডি (Ex: 582194821)"
+                class="flex-1 bg-slate-900 border border-slate-700 focus:border-indigo-500 px-3 py-1.5 rounded-lg text-xs outline-none text-white transition">
+              <button id="btn-admin-${g.groupId}" onclick="makeAdmin('${g.groupId}')"
+                class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold transition">
+                Make Admin
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+  </script>
 </body>
 </html>
