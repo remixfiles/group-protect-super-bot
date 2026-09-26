@@ -5,10 +5,17 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-// ছবির Base64 সাইজের জন্য লিমিট বাড়ানো হয়েছে
+
+// ১. CORS কনফিগারেশন সবার উপরে
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// ২. ছবির Base64 ডাটা হ্যান্ডেল করতে লিমিট 50mb নির্ধারণ
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(cors());
 
 // Health Check রুট (UptimeRobot পিংয়ের জন্য)
 app.get('/', (req, res) => {
@@ -37,17 +44,17 @@ const groupSchema = new mongoose.Schema({
   antiSpam: { type: Boolean, default: true },
   antiFlood: { type: Boolean, default: true },
   antiForward: { type: Boolean, default: true },
-  lastAutoMsgId: { type: Number, default: null }, // আগের অটো মেসেজ আইডি
-  lastBroadcastAt: { type: Date, default: null }, // শেষ পাঠানোর সময়
+  lastAutoMsgId: { type: Number, default: null },
+  lastBroadcastAt: { type: Date, default: null },
   addedAt: { type: Date, default: Date.now }
 });
 const Group = mongoose.model('Group', groupSchema);
 
 // ৩. অটো ব্রডকাস্ট কনফিগ স্কিমা
 const broadcastSchema = new mongoose.Schema({
-  imageData: { type: String, default: "" }, // Base64 বা Image URL
+  imageData: { type: String, default: "" },
   text: { type: String, default: "" },
-  buttons: { type: Array, default: [] }, // [[ {text, url}, {text, url} ], [ ... ]]
+  buttons: { type: Array, default: [] },
   updatedAt: { type: Date, default: Date.now }
 });
 const BroadcastConfig = mongoose.model('BroadcastConfig', broadcastSchema);
@@ -74,7 +81,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Connected to MongoDB Atlas");
     await refreshCache();
-    start12HourScheduler(); // অটো শিডিউলার চালু
+    start12HourScheduler();
   })
   .catch(err => console.error("MongoDB Error:", err));
 
@@ -121,10 +128,7 @@ async function executeBroadcastJob() {
     for (const group of groups) {
       const lastSent = group.lastBroadcastAt ? new Date(group.lastBroadcastAt).getTime() : 0;
       
-      // ১২ ঘণ্টা পার হলে অথবা আগে কখনোই না পাঠানো হলে
       if (now - lastSent >= twelveHoursMs) {
-        
-        // ১. আগের মেসেজ থাকলে ডিলিট করা
         if (group.lastAutoMsgId) {
           await callTelegram('deleteMessage', {
             chat_id: group.groupId,
@@ -132,7 +136,6 @@ async function executeBroadcastJob() {
           });
         }
 
-        // ২. ইনলাইন কিবোর্ড ফরম্যাট তৈরি
         const replyMarkup = {
           inline_keyboard: (config.buttons || []).map(row => 
             row.filter(b => b.text && b.url).map(b => ({
@@ -144,7 +147,6 @@ async function executeBroadcastJob() {
 
         let newMsgId = null;
 
-        // ৩. ছবি থাকলে sendPhoto, না থাকলে sendMessage
         if (config.imageData) {
           const sent = await callTelegram('sendPhoto', {
             chat_id: group.groupId,
@@ -162,7 +164,6 @@ async function executeBroadcastJob() {
           if (sent && sent.ok) newMsgId = sent.result.message_id;
         }
 
-        // ৪. নতুন মেসেজ আইডি ও টাইম ডাটাবেজে সংরক্ষণ
         if (newMsgId) {
           await Group.updateOne(
             { groupId: group.groupId },
@@ -180,9 +181,7 @@ async function executeBroadcastJob() {
 }
 
 function start12HourScheduler() {
-  // সার্ভার রান হওয়ার ৩০ সেকেন্ড পর প্রথম চেক
   setTimeout(executeBroadcastJob, 30000);
-  // প্রতি ৩ মিনিট পর পর টাইমিং চেক করবে
   setInterval(executeBroadcastJob, 3 * 60 * 1000);
 }
 
@@ -210,7 +209,7 @@ app.post('/webhook', async (req, res) => {
     const userName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || "User";
     const userHandle = msg.from.username || "";
 
-    // ১. ANTI-FORWARD CONTROL
+    // ১. ANTI-FORWARD
     const isForwarded = Boolean(
       msg.forward_origin || 
       msg.forward_from || 
@@ -228,12 +227,11 @@ app.post('/webhook', async (req, res) => {
         until_date: untilDate,
         permissions: { can_send_messages: false }
       });
-
       await recordMutedUser(chatId, userId, userName, userHandle, "Forwarded Msg (3D Mute)");
       return;
     }
 
-    // ২. SPAM CONTROL
+    // ২. SPAM
     if (groupConfig.antiSpam) {
       let isSpam = false;
       if (msg.entities) {
@@ -253,13 +251,12 @@ app.post('/webhook', async (req, res) => {
           until_date: untilDate,
           permissions: { can_send_messages: false }
         });
-
         await recordMutedUser(chatId, userId, userName, userHandle, "Spam (Link/Mention)");
         return;
       }
     }
 
-    // ৩. FLOOD CONTROL
+    // ৩. FLOOD
     if (groupConfig.antiFlood) {
       const now = Date.now();
       const trackKey = `${chatId}:${userId}`;
@@ -278,7 +275,6 @@ app.post('/webhook', async (req, res) => {
           permissions: { can_send_messages: false }
         });
         floodTracker.delete(trackKey);
-
         await recordMutedUser(chatId, userId, userName, userHandle, "Flood (6+ msg / 3s)");
       }
     }
