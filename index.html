@@ -11,7 +11,6 @@
     body {
       font-family: 'Hind Siliguri', sans-serif;
     }
-    /* Bottom Sheet Slide Animation */
     .slide-panel {
       transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       transform: translateY(100%);
@@ -125,6 +124,20 @@
     <div class="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
       <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">মডারেশন ফিচারসমূহ</h4>
 
+      <!-- এন্টি-ফরোয়ার্ড টগল -->
+      <div class="flex items-center justify-between py-1">
+        <div>
+          <p class="text-sm font-semibold text-white">Anti-Forward Control</p>
+          <p class="text-xs text-slate-400">অন্য চ্যানেল/গ্রুপ/বট থেকে ফরোয়ার্ড করলেই ডিলিট ও ৩ দিন মিউট</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="toggleForward" onchange="toggleFeature('antiForward', this.checked)" class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+        </label>
+      </div>
+
+      <hr class="border-slate-800/80">
+
       <!-- এন্টি-স্প্যাম টগল -->
       <div class="flex items-center justify-between py-1">
         <div>
@@ -159,7 +172,6 @@
         <span id="mutedCountBadge" class="text-[11px] bg-rose-950/50 text-rose-300 border border-rose-800 px-2 py-0.5 rounded-full">০ জন</span>
       </div>
 
-      <!-- ড্রপডাউন / সিলেক্ট দিয়ে আনমিউট অপশন -->
       <div id="mutedUsersSection" class="space-y-2">
         <!-- ডায়নামিক মিউটেড ইউজার লিস্ট -->
       </div>
@@ -332,6 +344,7 @@
 
       document.getElementById("panelGroupTitle").innerText = group.groupTitle;
       document.getElementById("panelGroupId").innerText = group.groupId;
+      document.getElementById("toggleForward").checked = group.antiForward !== false;
       document.getElementById("toggleSpam").checked = group.antiSpam !== false;
       document.getElementById("toggleFlood").checked = group.antiFlood !== false;
 
@@ -357,7 +370,6 @@
         `).join('');
       }
 
-      // স্লাইড শো
       document.getElementById("slideBackdrop").classList.remove("hidden");
       document.getElementById("slidePanel").classList.add("open");
     }

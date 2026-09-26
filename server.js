@@ -24,8 +24,7 @@ const mutedUserSchema = new mongoose.Schema({
   name: { type: String, default: "User" },
   username: { type: String, default: "" },
   reason: { type: String, default: "Spam" },
-  // ৩ দিন = ৩ * ২৪ * ৬০ * ৬০ = ২৫৯২০০ সেকেন্ড পর স্বয়ংক্রিয়ভাবে মুছে যাবে
-  mutedAt: { type: Date, default: Date.now, expires: 259200 }
+  mutedAt: { type: Date, default: Date.now, expires: 259200 } // ৩ দিন পর অটোমেটিক ডিলিট
 });
 const MutedUser = mongoose.model('MutedUser', mutedUserSchema);
 
@@ -35,6 +34,7 @@ const groupSchema = new mongoose.Schema({
   groupTitle: { type: String, default: "Unknown Group" },
   antiSpam: { type: Boolean, default: true },
   antiFlood: { type: Boolean, default: true },
+  antiForward: { type: Boolean, default: true }, // নতুন এন্টি-ফরোয়ার্ড ফিচার
   addedAt: { type: Date, default: Date.now }
 });
 const Group = mongoose.model('Group', groupSchema);
@@ -49,7 +49,8 @@ async function refreshCache() {
     groups.forEach(g => {
       groupConfigCache.set(String(g.groupId), {
         antiSpam: g.antiSpam,
-        antiFlood: g.antiFlood
+        antiFlood: g.antiFlood,
+        antiForward: g.antiForward !== false
       });
     });
   } catch (err) {
@@ -80,7 +81,6 @@ async function callTelegram(method, data) {
 async function recordMutedUser(chatId, userId, name, username, reason) {
   try {
     const sChatId = String(chatId);
-    // আগের রেকর্ড থাকলে রিমুভ করে নতুন টাইমস্ট্যাম্প দিয়ে সেভ
     await MutedUser.deleteMany({ groupId: sChatId, userId: Number(userId) });
     await MutedUser.create({
       groupId: sChatId,
@@ -119,7 +119,30 @@ app.post('/webhook', async (req, res) => {
     const userName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || "User";
     const userHandle = msg.from.username || "";
 
-    // ১. SPAM CONTROL (যদি টগল অন থাকে)
+    // ১. ANTI-FORWARD CONTROL (অন্য গ্রুপ/চ্যানেল/বট/ইউজারের মেসেজ ফরোয়ার্ড ব্লক)
+    const isForwarded = Boolean(
+      msg.forward_origin || 
+      msg.forward_from || 
+      msg.forward_from_chat || 
+      msg.forward_sender_name || 
+      msg.forward_date
+    );
+
+    if (groupConfig.antiForward && isForwarded) {
+      await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
+      const untilDate = Math.floor(Date.now() / 1000) + (3 * 24 * 60 * 60);
+      await callTelegram('restrictChatMember', {
+        chat_id: chatId,
+        user_id: userId,
+        until_date: untilDate,
+        permissions: { can_send_messages: false }
+      });
+
+      await recordMutedUser(chatId, userId, userName, userHandle, "Forwarded Msg (3D Mute)");
+      return;
+    }
+
+    // ২. SPAM CONTROL (যদি টগল অন থাকে)
     if (groupConfig.antiSpam) {
       let isSpam = false;
       if (msg.entities) {
@@ -145,7 +168,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ২. FLOOD CONTROL (যদি টগল অন থাকে)
+    // ৩. FLOOD CONTROL (যদি টগল অন থাকে)
     if (groupConfig.antiFlood) {
       const now = Date.now();
       const trackKey = `${chatId}:${userId}`;
@@ -186,13 +209,10 @@ const authMiddleware = (req, res, next) => {
 app.post('/api/groups', authMiddleware, async (req, res) => {
   try {
     const groups = await Group.find({}).sort({ addedAt: -1 }).lean();
-    
-    // প্রতিটি গ্রুপের লাইভ মিউটেড মেম্বার যুক্ত করা
     for (let group of groups) {
       const muted = await MutedUser.find({ groupId: group.groupId }).sort({ mutedAt: -1 });
       group.mutedUsers = muted;
     }
-
     res.json({ success: true, groups });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -234,7 +254,7 @@ app.post('/api/groups/delete', authMiddleware, async (req, res) => {
   }
 });
 
-// ফিচার টগল আপডেট (Anti-Spam / Anti-Flood)
+// ফিচার টগল আপডেট (Anti-Spam / Anti-Flood / Anti-Forward)
 app.post('/api/groups/toggle', authMiddleware, async (req, res) => {
   const { groupId, feature, value } = req.body;
   if (!groupId || !feature) {
@@ -266,7 +286,6 @@ app.post('/api/groups/unmute', authMiddleware, async (req, res) => {
   }
 
   try {
-    // টেলিগ্রামে পারমিশন রিস্টোর করা
     await callTelegram('restrictChatMember', {
       chat_id: groupId,
       user_id: userId,
@@ -281,7 +300,6 @@ app.post('/api/groups/unmute', authMiddleware, async (req, res) => {
       }
     });
 
-    // ডাটাবেজ থেকে রিমুভ করা
     await MutedUser.deleteMany({ groupId: String(groupId), userId: Number(userId) });
 
     res.json({ success: true, message: "ইউজারকে সফলভাবে আনমিউট করা হয়েছে!" });
