@@ -275,10 +275,11 @@
         if (data.success) {
           loadedGroups = data.groups;
           renderGroupsList(loadedGroups);
-          // যদি স্লাইড প্যানেল খোলা থাকে, তবে ডাটা রিফ্রেশ করুন
           if (currentActiveGroup) {
-            const updatedGroup = loadedGroups.find(g => g.groupId === currentActiveGroup.groupId);
-            if (updatedGroup) openControlPanel(updatedGroup.groupId);
+            const updatedGroup = loadedGroups.find(g => String(g.groupId) === String(currentActiveGroup.groupId));
+            if (updatedGroup) {
+              currentActiveGroup = updatedGroup;
+            }
           }
         }
       } catch (e) {
@@ -323,8 +324,9 @@
     }
 
     // স্লাইড প্যানেল ওপেন
-    function openControlPanel(groupId) {
-      const group = loadedGroups.find(g => g.groupId === groupId);
+    async function openControlPanel(groupId) {
+      await reloadData();
+      const group = loadedGroups.find(g => String(g.groupId) === String(groupId));
       if (!group) return;
       currentActiveGroup = group;
 
@@ -401,6 +403,7 @@
         const data = await res.json();
         if (data.success) {
           await reloadData();
+          openControlPanel(groupId);
         } else {
           alert(data.message || "আনমিউট করা যায়নি!");
         }

@@ -73,6 +73,33 @@ async function callTelegram(method, data) {
   }
 }
 
+// মিউটেড ইউজার MongoDB-তে সেভ করার নির্ভরযোগ্য ফাংশন
+async function recordMutedUser(chatId, userId, name, username, reason) {
+  try {
+    const sChatId = String(chatId);
+    await Group.updateOne(
+      { groupId: sChatId },
+      { $pull: { mutedUsers: { userId: Number(userId) } } }
+    );
+    await Group.updateOne(
+      { groupId: sChatId },
+      { 
+        $push: { 
+          mutedUsers: { 
+            userId: Number(userId), 
+            name: name || "User", 
+            username: username || "", 
+            reason: reason,
+            mutedAt: new Date()
+          } 
+        } 
+      }
+    );
+  } catch (err) {
+    console.error("Error recording muted user:", err.message);
+  }
+}
+
 // ---------------- TELEGRAM WEBHOOK ---------------- //
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
@@ -118,26 +145,7 @@ app.post('/webhook', async (req, res) => {
           permissions: { can_send_messages: false }
         });
 
-        // MongoDB-তে মিউটেড লিস্টে সেভ
-        await Group.updateOne(
-          { groupId: chatId },
-          { 
-            $pull: { mutedUsers: { userId: userId } } 
-          }
-        );
-        await Group.updateOne(
-          { groupId: chatId },
-          { 
-            $push: { 
-              mutedUsers: { 
-                userId, 
-                name: userName, 
-                username: userHandle, 
-                reason: "Spam (Link/Mention)" 
-              } 
-            } 
-          }
-        );
+        await recordMutedUser(chatId, userId, userName, userHandle, "Spam (Link/Mention)");
         return;
       }
     }
@@ -162,23 +170,7 @@ app.post('/webhook', async (req, res) => {
         });
         floodTracker.delete(trackKey);
 
-        await Group.updateOne(
-          { groupId: chatId },
-          { $pull: { mutedUsers: { userId: userId } } }
-        );
-        await Group.updateOne(
-          { groupId: chatId },
-          { 
-            $push: { 
-              mutedUsers: { 
-                userId, 
-                name: userName, 
-                username: userHandle, 
-                reason: "Flood (6+ msg / 3s)" 
-              } 
-            } 
-          }
-        );
+        await recordMutedUser(chatId, userId, userName, userHandle, "Flood (6+ msg / 3s)");
       }
     }
   } catch (err) {
