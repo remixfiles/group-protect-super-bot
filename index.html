@@ -11,124 +11,186 @@
     body {
       font-family: 'Hind Siliguri', sans-serif;
     }
+    /* Bottom Sheet Slide Animation */
+    .slide-panel {
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      transform: translateY(100%);
+    }
+    .slide-panel.open {
+      transform: translateY(0%);
+    }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen">
+<body class="bg-slate-950 text-slate-100 min-h-screen relative pb-10">
 
-  <!-- ==================== ১. লক স্ক্রিন / লগইন মডাল (পাসওয়ার্ড ছাড়া কিছু দেখা যাবে না) ==================== -->
+  <!-- ==================== ১. লক স্ক্রিন ==================== -->
   <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
-      <div class="absolute -top-12 -right-12 w-36 h-36 bg-sky-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
       <div class="text-center space-y-3">
-        <div class="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-2xl mx-auto shadow-inner">
+        <div class="w-16 h-16 rounded-2xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-2xl mx-auto">
           <i class="fa-solid fa-lock"></i>
         </div>
         <h2 class="text-xl font-bold text-white tracking-wide">অ্যাডমিন অ্যাক্সেস লক</h2>
-        <p class="text-xs text-slate-400">প্যানেলটি ওপেন করতে অনুগ্রহ করে আপনার সিক্রেট পাসওয়ার্ড দিন।</p>
+        <p class="text-xs text-slate-400">প্যানেলে ঢুকতে আপনার সিক্রেট পাসওয়ার্ড দিন।</p>
       </div>
 
       <form onsubmit="handleLogin(event)" class="mt-6 space-y-4">
         <div class="relative">
-          <input type="password" id="loginPassword" placeholder="অ্যাডমিন পাসওয়ার্ড লিখুন..." autofocus
+          <input type="password" id="loginPassword" placeholder="পাসওয়ার্ড..." autofocus
             class="w-full bg-slate-950 border border-slate-700 focus:border-sky-500 px-4 py-3 rounded-xl text-sm text-slate-100 outline-none transition pr-10">
-          <button type="button" onclick="togglePasswordVisibility('loginPassword', 'lockEyeIcon')" class="absolute right-3.5 top-3.5 text-slate-400 hover:text-slate-200 text-sm">
+          <button type="button" onclick="togglePasswordVisibility('loginPassword', 'lockEyeIcon')" class="absolute right-3.5 top-3.5 text-slate-400 text-sm">
             <i id="lockEyeIcon" class="fa-regular fa-eye"></i>
           </button>
         </div>
-
         <button type="submit" id="loginBtn"
-          class="w-full bg-sky-600 hover:bg-sky-500 active:scale-95 text-white py-3 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-sky-600/20">
+          class="w-full bg-sky-600 hover:bg-sky-500 active:scale-95 text-white py-3 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2">
           <i class="fa-solid fa-key"></i> <span>আনলক করুন</span>
         </button>
-
         <p id="loginError" class="text-xs text-rose-400 text-center hidden font-medium"></p>
       </form>
     </div>
   </div>
 
-  <!-- ==================== ২. মেইন অ্যাডমিন প্যানেল (লগইন ছাড়া ডিসপ্লে বন্ধ) ==================== -->
+  <!-- ==================== ২. মূল ড্যাশবোর্ড ==================== -->
   <div id="mainDashboard" class="hidden">
-    
-    <!-- টপ হেডার -->
-    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-40">
-      <div class="max-w-6xl mx-auto px-4 py-3.5 flex items-center justify-between gap-4">
+    <!-- হেডার -->
+    <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+      <div class="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-lg shadow-inner">
+          <div class="w-9 h-9 rounded-xl bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-400 text-base">
             <i class="fa-solid fa-robot"></i>
           </div>
           <div>
-            <h1 class="text-lg font-bold text-white tracking-wide">GroupControl Panel</h1>
-            <p class="text-xs text-sky-400 font-medium">Specific Group Control & Moderation</p>
+            <h1 class="text-base sm:text-lg font-bold text-white">GroupControl Panel</h1>
+            <p class="text-[11px] text-sky-400">স্মার্ট গ্রুপ মডারেশন ও ফিল্টারিং</p>
           </div>
         </div>
-
-        <div class="flex items-center gap-3">
-          <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> অথোরাইজড
-          </span>
-          <button onclick="handleLogout()" class="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800 text-rose-300 text-xs px-3 py-1.5 rounded-xl transition flex items-center gap-1.5">
-            <i class="fa-solid fa-right-from-bracket"></i> লগআউট
-          </button>
-        </div>
+        <button onclick="handleLogout()" class="bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800 text-rose-300 text-xs px-3 py-1.5 rounded-xl transition">
+          <i class="fa-solid fa-right-from-bracket"></i> লগআউট
+        </button>
       </div>
     </header>
 
-    <!-- মেইন কন্টেন্ট -->
-    <main class="max-w-6xl mx-auto px-4 py-8 space-y-8">
-      
-      <!-- নতুন গ্রুপ যোগ করার সেকশন -->
-      <section class="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div class="max-w-xl">
-          <h2 class="text-base sm:text-lg font-bold text-slate-100 flex items-center gap-2">
-            <i class="fa-solid fa-plus-circle text-sky-400"></i> নতুন অনুমোদিত গ্রুপ যোগ করুন
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">
-            বট যে গ্রুপে অ্যাডমিন আছে, সেই গ্রুপের আইডি দিন। গ্রুপের নাম স্বয়ংক্রিয়ভাবে সেভ হবে।
-          </p>
-        </div>
-
-        <div class="mt-4 flex flex-col sm:flex-row gap-3">
-          <div class="relative flex-1">
-            <i class="fa-solid fa-hashtag absolute left-3.5 top-3 text-slate-500 text-sm"></i>
-            <input type="text" id="newGroupId" placeholder="গ্রুপ আইডি দিন (যেমন: -100123456789)"
-              class="w-full bg-slate-950 border border-slate-700/80 focus:border-sky-500 pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none transition text-slate-200">
-          </div>
+    <main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <!-- নতুন গ্রুপ যোগ -->
+      <section class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 shadow-lg">
+        <h2 class="text-sm sm:text-base font-bold text-slate-200 flex items-center gap-2">
+          <i class="fa-solid fa-plus-circle text-sky-400"></i> নতুন অনুমোদিত গ্রুপ যোগ করুন
+        </h2>
+        <div class="mt-3 flex flex-col sm:flex-row gap-2.5">
+          <input type="text" id="newGroupId" placeholder="গ্রুপ আইডি দিন (যেমন: -100123456789)"
+            class="flex-1 bg-slate-950 border border-slate-700/80 focus:border-sky-500 px-4 py-2.5 rounded-xl text-sm outline-none text-slate-200">
           <button onclick="addNewGroup()" id="addBtn"
-            class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
-            <i class="fa-solid fa-circle-plus"></i> যোগ করুন
+            class="bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+            + যোগ করুন
           </button>
         </div>
       </section>
 
-      <!-- গ্রুপ লিস্ট সেকশন -->
-      <section class="space-y-4">
-        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div>
-            <h2 class="text-lg font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-shield-halved text-indigo-400"></i> Specific Group Control
-            </h2>
-            <p class="text-xs text-slate-400">অনুমোদিত গ্রুপসমূহ এবং তাদের অটোমেশন স্ট্যাটাস</p>
-          </div>
-          <span id="groupCountBadge" class="text-xs bg-slate-800 text-sky-400 px-3 py-1 rounded-full border border-slate-700 font-medium">
-            ০টি গ্রুপ সক্রিয়
-          </span>
+      <!-- অনুমোদিত গ্রুপের তালিকা -->
+      <section class="space-y-3">
+        <div class="flex items-center justify-between pb-1">
+          <h2 class="text-base font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-list-check text-indigo-400"></i> অনুমোদিত গ্রুপসমূহ (ক্লিক করে কন্ট্রোল খুলুন)
+          </h2>
+          <span id="groupCountBadge" class="text-xs bg-slate-800 text-sky-400 px-2.5 py-0.5 rounded-full border border-slate-700">০টি গ্রুপ</span>
         </div>
 
-        <!-- গ্রুপ কার্ড গ্রিড -->
-        <div id="groupsContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-          <!-- ডায়নামিক কার্ড এখানে আসবে -->
+        <div id="groupsList" class="space-y-2.5">
+          <!-- গ্রুপের আইটেম লিস্ট এখানে ডায়নামিকভাবে আসবে -->
         </div>
       </section>
-
     </main>
   </div>
 
-  <script>
-    // আপনার আসল Render URL
-    const BACKEND_URL = "https://group-protect-super-bot.onrender.com";
+  <!-- ==================== ৩. বটম স্লাইড কন্ট্রোল প্যানেল (Drawer Sheet) ==================== -->
+  <div id="slideBackdrop" onclick="closeControlPanel()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity"></div>
 
-    // পেজ লোড হলে সেশন চেক
+  <div id="slidePanel" class="slide-panel fixed bottom-0 left-0 right-0 max-w-2xl mx-auto bg-slate-900 border-t border-x border-slate-700/80 rounded-t-3xl p-6 z-50 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto">
+    <!-- ড্র্যাগ হ্যান্ডল ও হেডার -->
+    <div>
+      <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-4 cursor-pointer" onclick="closeControlPanel()"></div>
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 id="panelGroupTitle" class="text-lg font-bold text-white flex items-center gap-2">গ্রুপ নাম</h3>
+          <span id="panelGroupId" class="text-xs font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800"></span>
+        </div>
+        <button onclick="closeControlPanel()" class="text-slate-400 hover:text-white text-lg p-1">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ফিচার টগল বাটন সেকশন -->
+    <div class="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">মডারেশন ফিচারসমূহ</h4>
+
+      <!-- এন্টি-স্প্যাম টগল -->
+      <div class="flex items-center justify-between py-1">
+        <div>
+          <p class="text-sm font-semibold text-white">Anti-Spam (Link & Mention Block)</p>
+          <p class="text-xs text-slate-400">লিংক বা ইউজারনেম দিলে ডিলিট এবং ৩ দিন মিউট</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="toggleSpam" onchange="toggleFeature('antiSpam', this.checked)" class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+        </label>
+      </div>
+
+      <hr class="border-slate-800/80">
+
+      <!-- এন্টি-ফ্লাড টগল -->
+      <div class="flex items-center justify-between py-1">
+        <div>
+          <p class="text-sm font-semibold text-white">Anti-Flood Control</p>
+          <p class="text-xs text-slate-400">৩ সেকেন্ডে ৬টির বেশি মেসেজ পাঠালে ৫ মিনিট মিউট</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="toggleFlood" onchange="toggleFeature('antiFlood', this.checked)" class="sr-only peer">
+          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+        </label>
+      </div>
+    </div>
+
+    <!-- মিউটেড ইউজার লিস্ট ও আনমিউট সেকশন -->
+    <div class="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
+      <div class="flex items-center justify-between">
+        <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">মিউটেড ইউজার তালিকা</h4>
+        <span id="mutedCountBadge" class="text-[11px] bg-rose-950/50 text-rose-300 border border-rose-800 px-2 py-0.5 rounded-full">০ জন</span>
+      </div>
+
+      <!-- ড্রপডাউন / সিলেক্ট দিয়ে আনমিউট অপশন -->
+      <div id="mutedUsersSection" class="space-y-2">
+        <!-- ডায়নামিক মিউটেড ইউজার লিস্ট -->
+      </div>
+    </div>
+
+    <!-- Make Admin সেকশন -->
+    <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-2">
+      <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Make Admin (মেম্বারকে অ্যাডমিন করুন)</h4>
+      <div class="flex gap-2">
+        <input type="text" id="panelAdminUserId" placeholder="ইউজার আইডি (Numeric ID)"
+          class="flex-1 bg-slate-900 border border-slate-700 focus:border-indigo-500 px-3.5 py-2 rounded-xl text-xs outline-none text-white">
+        <button onclick="submitMakeAdmin()" id="btnMakeAdmin"
+          class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-4 py-2 rounded-xl font-semibold transition">
+          Make Admin
+        </button>
+      </div>
+    </div>
+
+    <!-- গ্রুপ ডিলিট বাটন -->
+    <div class="pt-2 text-right">
+      <button onclick="deleteCurrentGroup()" class="text-rose-400 hover:text-rose-300 text-xs bg-rose-950/30 border border-rose-900 px-3 py-1.5 rounded-xl transition">
+        <i class="fa-solid fa-trash-can mr-1"></i> এই গ্রুপটি সম্পূর্ণ রিমুভ করুন
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const BACKEND_URL = "https://group-protect-super-bot.onrender.com";
+    let loadedGroups = [];
+    let currentActiveGroup = null;
+
     window.addEventListener('DOMContentLoaded', async () => {
       const savedPass = sessionStorage.getItem('tg_admin_password');
       if (savedPass) {
@@ -137,40 +199,35 @@
     });
 
     function togglePasswordVisibility(inputId, iconId) {
-      const passInput = document.getElementById(inputId);
-      const eyeIcon = document.getElementById(iconId);
-      if (passInput.type === "password") {
-        passInput.type = "text";
-        eyeIcon.className = "fa-regular fa-eye-slash";
+      const pass = document.getElementById(inputId);
+      const icon = document.getElementById(iconId);
+      if (pass.type === "password") {
+        pass.type = "text";
+        icon.className = "fa-regular fa-eye-slash";
       } else {
-        passInput.type = "password";
-        eyeIcon.className = "fa-regular fa-eye";
+        pass.type = "password";
+        icon.className = "fa-regular fa-eye";
       }
     }
 
     async function handleLogin(e) {
       e.preventDefault();
-      const password = document.getElementById("loginPassword").value.trim();
-      const loginBtn = document.getElementById("loginBtn");
-      const errorMsg = document.getElementById("loginError");
+      const pass = document.getElementById("loginPassword").value.trim();
+      const btn = document.getElementById("loginBtn");
+      const err = document.getElementById("loginError");
 
-      if (!password) {
-        errorMsg.innerText = "পাসওয়ার্ড দিন!";
-        errorMsg.classList.remove("hidden");
-        return;
-      }
+      if (!pass) return;
 
-      loginBtn.disabled = true;
-      loginBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ভেরিফাই হচ্ছে...`;
-      errorMsg.classList.add("hidden");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> ভেরিফাই হচ্ছে...`;
+      err.classList.add("hidden");
 
-      const success = await verifyAndUnlock(password);
-
-      if (!success) {
-        errorMsg.innerText = "ভুল পাসওয়ার্ড অথবা সার্ভার রেসপন্স করছে না!";
-        errorMsg.classList.remove("hidden");
-        loginBtn.disabled = false;
-        loginBtn.innerHTML = `<i class="fa-solid fa-key"></i> <span>আনলক করুন</span>`;
+      const ok = await verifyAndUnlock(pass);
+      if (!ok) {
+        err.innerText = "ভুল পাসওয়ার্ড অথবা সার্ভার রেসপন্স করছে না!";
+        err.classList.remove("hidden");
+        btn.disabled = false;
+        btn.innerHTML = `<i class="fa-solid fa-key"></i> <span>আনলক করুন</span>`;
       }
     }
 
@@ -187,7 +244,8 @@
           sessionStorage.setItem('tg_admin_password', password);
           document.getElementById("lockScreen").classList.add("hidden");
           document.getElementById("mainDashboard").classList.remove("hidden");
-          renderGroups(data.groups);
+          loadedGroups = data.groups;
+          renderGroupsList(loadedGroups);
           return true;
         }
         return false;
@@ -198,16 +256,14 @@
 
     function handleLogout() {
       sessionStorage.removeItem('tg_admin_password');
-      document.getElementById("loginPassword").value = "";
-      document.getElementById("mainDashboard").classList.add("hidden");
-      document.getElementById("lockScreen").classList.remove("hidden");
+      location.reload();
     }
 
     function getPassword() {
       return sessionStorage.getItem('tg_admin_password') || "";
     }
 
-    async function reloadGroups() {
+    async function reloadData() {
       const password = getPassword();
       try {
         const res = await fetch(`${BACKEND_URL}/api/groups`, {
@@ -216,21 +272,183 @@
           body: JSON.stringify({ password })
         });
         const data = await res.json();
-        if (data.success) renderGroups(data.groups);
-      } catch (err) {
-        console.error(err);
+        if (data.success) {
+          loadedGroups = data.groups;
+          renderGroupsList(loadedGroups);
+          // যদি স্লাইড প্যানেল খোলা থাকে, তবে ডাটা রিফ্রেশ করুন
+          if (currentActiveGroup) {
+            const updatedGroup = loadedGroups.find(g => g.groupId === currentActiveGroup.groupId);
+            if (updatedGroup) openControlPanel(updatedGroup.groupId);
+          }
+        }
+      } catch (e) {
+        console.error(e);
       }
     }
 
+    function renderGroupsList(groups) {
+      const list = document.getElementById("groupsList");
+      const badge = document.getElementById("groupCountBadge");
+      badge.innerText = `${groups.length}টি গ্রুপ`;
+
+      if (groups.length === 0) {
+        list.innerHTML = `
+          <div class="py-12 text-center text-slate-500 bg-slate-900/30 rounded-2xl border border-dashed border-slate-800">
+            <p class="text-sm">কোনো গ্রুপ যোগ করা হয়নি। উপরে গ্রুপ আইডি দিয়ে যোগ করুন।</p>
+          </div>`;
+        return;
+      }
+
+      list.innerHTML = groups.map(g => {
+        const mutedCount = g.mutedUsers ? g.mutedUsers.length : 0;
+        return `
+          <div onclick="openControlPanel('${g.groupId}')" 
+            class="bg-slate-900 hover:bg-slate-850 active:scale-[0.99] border border-slate-800 hover:border-slate-700 p-4 rounded-2xl cursor-pointer transition flex items-center justify-between gap-4 shadow-sm">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-sm">
+                <i class="fa-solid fa-shield-halved"></i>
+              </div>
+              <div>
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">${g.groupTitle}</h3>
+                <p class="text-[11px] font-mono text-slate-400">ID: ${g.groupId}</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              ${mutedCount > 0 ? `<span class="bg-rose-950/60 text-rose-300 border border-rose-800/80 px-2 py-0.5 rounded-full text-[10px]">${mutedCount} জন মিউট</span>` : ''}
+              <span class="text-slate-400"><i class="fa-solid fa-chevron-up text-xs"></i> কন্ট্রোল</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // স্লাইড প্যানেল ওপেন
+    function openControlPanel(groupId) {
+      const group = loadedGroups.find(g => g.groupId === groupId);
+      if (!group) return;
+      currentActiveGroup = group;
+
+      document.getElementById("panelGroupTitle").innerText = group.groupTitle;
+      document.getElementById("panelGroupId").innerText = group.groupId;
+      document.getElementById("toggleSpam").checked = group.antiSpam !== false;
+      document.getElementById("toggleFlood").checked = group.antiFlood !== false;
+
+      // মিউটেড ইউজার রেন্ডার
+      const mutedList = group.mutedUsers || [];
+      document.getElementById("mutedCountBadge").innerText = `${mutedList.length} জন`;
+      const mutedContainer = document.getElementById("mutedUsersSection");
+
+      if (mutedList.length === 0) {
+        mutedContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-2">বর্তমানে কোনো ইউজার মিউট অবস্থায় নেই।</p>`;
+      } else {
+        mutedContainer.innerHTML = mutedList.map(u => `
+          <div class="bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl flex items-center justify-between text-xs">
+            <div>
+              <p class="font-semibold text-slate-200">${u.name} ${u.username ? `<span class="text-sky-400 font-normal">(@${u.username})</span>` : ''}</p>
+              <p class="text-[10px] text-slate-500">কারণ: ${u.reason} | ID: ${u.userId}</p>
+            </div>
+            <button onclick="unmuteUser('${group.groupId}', ${u.userId})" 
+              class="bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 px-2.5 py-1 rounded-lg text-xs transition">
+              <i class="fa-solid fa-unlock mr-1"></i> আনমিউট
+            </button>
+          </div>
+        `).join('');
+      }
+
+      // স্লাইড শো
+      document.getElementById("slideBackdrop").classList.remove("hidden");
+      document.getElementById("slidePanel").classList.add("open");
+    }
+
+    function closeControlPanel() {
+      document.getElementById("slidePanel").classList.remove("open");
+      document.getElementById("slideBackdrop").classList.add("hidden");
+      currentActiveGroup = null;
+    }
+
+    // ফিচার টগল করা
+    async function toggleFeature(feature, value) {
+      if (!currentActiveGroup) return;
+      const password = getPassword();
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/groups/toggle`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, groupId: currentActiveGroup.groupId, feature, value })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await reloadData();
+        } else {
+          alert("টগল পরিবর্তন করা যায়নি!");
+        }
+      } catch (err) {
+        alert("সার্ভার ত্রুটি!");
+      }
+    }
+
+    // ইউজার আনমিউট করা
+    async function unmuteUser(groupId, userId) {
+      const password = getPassword();
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/groups/unmute`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, groupId, userId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          await reloadData();
+        } else {
+          alert(data.message || "আনমিউট করা যায়নি!");
+        }
+      } catch (err) {
+        alert("রিকোয়েস্ট ব্যর্থ হয়েছে!");
+      }
+    }
+
+    // Make Admin সাবমিট
+    async function submitMakeAdmin() {
+      if (!currentActiveGroup) return;
+      const password = getPassword();
+      const input = document.getElementById("panelAdminUserId");
+      const userId = input.value.trim();
+
+      if (!userId) return alert("ইউজারের Numeric ID দিন!");
+
+      const btn = document.getElementById("btnMakeAdmin");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/make-admin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password, groupId: currentActiveGroup.groupId, userId })
+        });
+        const data = await res.json();
+        alert(data.message);
+        if (data.success) input.value = "";
+      } catch (e) {
+        alert("অ্যাডমিন করা সম্ভব হয়নি!");
+      } finally {
+        btn.disabled = false;
+        btn.innerText = "Make Admin";
+      }
+    }
+
+    // গ্রুপ যোগ করা
     async function addNewGroup() {
       const password = getPassword();
       const groupId = document.getElementById("newGroupId").value.trim();
-      const addBtn = document.getElementById("addBtn");
+      const btn = document.getElementById("addBtn");
 
       if (!groupId) return alert("গ্রুপ আইডি দিন!");
 
-      addBtn.disabled = true;
-      addBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> যোগ হচ্ছে...`;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
 
       try {
         const res = await fetch(`${BACKEND_URL}/api/groups/add`, {
@@ -239,139 +457,42 @@
           body: JSON.stringify({ password, groupId })
         });
         const data = await res.json();
-
         if (data.success) {
           document.getElementById("newGroupId").value = "";
-          await reloadGroups();
+          await reloadData();
         } else {
           alert(data.message || "গ্রুপ যোগ করা যায়নি!");
         }
       } catch (err) {
-        alert("সার্ভার রিকোয়েস্ট ব্যর্থ হয়েছে!");
+        alert("সার্ভার ত্রুটি!");
       } finally {
-        addBtn.disabled = false;
-        addBtn.innerHTML = `<i class="fa-solid fa-circle-plus"></i> যোগ করুন`;
+        btn.disabled = false;
+        btn.innerText = "+ যোগ করুন";
       }
     }
 
-    async function deleteGroup(groupId, groupTitle) {
-      if (!confirm(`আপনি কি নিশ্চিত '${groupTitle}' (${groupId}) গ্রুপটি রিমুভ করবেন?`)) return;
+    // গ্রুপ মুছে ফেলা
+    async function deleteCurrentGroup() {
+      if (!currentActiveGroup) return;
+      if (!confirm(`আপনি কি নিশ্চিত '${currentActiveGroup.groupTitle}' সম্পূর্ণ রিমুভ করবেন?`)) return;
 
       const password = getPassword();
       try {
         const res = await fetch(`${BACKEND_URL}/api/groups/delete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password, groupId })
+          body: JSON.stringify({ password, groupId: currentActiveGroup.groupId })
         });
         const data = await res.json();
         if (data.success) {
-          await reloadGroups();
+          closeControlPanel();
+          await reloadData();
         } else {
-          alert(data.message || "ডিলিট করা যায়নি!");
+          alert(data.message || "মুছে ফেলা যায়নি!");
         }
       } catch (err) {
-        alert("ডিলিট রিকোয়েস্ট ব্যর্থ!");
+        alert("সার্ভার ত্রুটি!");
       }
-    }
-
-    async function makeAdmin(groupId) {
-      const password = getPassword();
-      const input = document.getElementById(`user-${groupId}`);
-      const userId = input.value.trim();
-
-      if (!userId) return alert("ইউজার আইডি (Numeric ID) দিন!");
-
-      const btn = document.getElementById(`btn-admin-${groupId}`);
-      btn.disabled = true;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i>`;
-
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/make-admin`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password, groupId, userId })
-        });
-        const data = await res.json();
-
-        alert(data.message);
-        if (data.success) input.value = "";
-      } catch (err) {
-        alert("মেম্বারকে অ্যাডমিন করতে সমস্যা হয়েছে!");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = `Make Admin`;
-      }
-    }
-
-    function renderGroups(groups) {
-      const container = document.getElementById("groupsContainer");
-      const badge = document.getElementById("groupCountBadge");
-
-      badge.innerText = `${groups.length}টি গ্রুপ সক্রিয়`;
-
-      if (groups.length === 0) {
-        container.innerHTML = `
-          <div class="col-span-full py-16 text-center text-slate-500 bg-slate-900/30 rounded-2xl border border-dashed border-slate-800">
-            <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-600"></i>
-            <p class="text-sm">কোনো অনুমোদিত গ্রুপ যোগ করা হয়নি। উপরের ফরম থেকে গ্রুপ আইডি দিয়ে যোগ করুন।</p>
-          </div>`;
-        return;
-      }
-
-      container.innerHTML = groups.map(g => `
-        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition duration-200">
-          <div>
-            <div class="flex items-start justify-between gap-3">
-              <div class="space-y-1">
-                <h3 class="text-base font-bold text-white flex items-center gap-2">
-                  <i class="fa-solid fa-users text-sky-400 text-xs"></i> ${g.groupTitle}
-                </h3>
-                <span class="inline-block text-xs font-mono text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
-                  ID: ${g.groupId}
-                </span>
-              </div>
-              <button onclick="deleteGroup('${g.groupId}', '${g.groupTitle}')" 
-                class="text-rose-400 hover:text-rose-300 hover:bg-rose-950/60 active:scale-95 text-xs bg-rose-950/30 border border-rose-900/60 px-2.5 py-1 rounded-lg transition"
-                title="গ্রুপটি রিমুভ করুন">
-                <i class="fa-solid fa-trash-can"></i> রিমুভ
-              </button>
-            </div>
-
-            <!-- ফিচার ও রুলস স্ট্যাটাস -->
-            <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-2 text-xs">
-              <div class="flex items-center justify-between text-slate-300">
-                <span class="flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Spam Control
-                </span>
-                <span class="text-slate-500 font-medium">Link & Mention Blocked (3D Mute)</span>
-              </div>
-              <div class="flex items-center justify-between text-slate-300">
-                <span class="flex items-center gap-2">
-                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Flood Control
-                </span>
-                <span class="text-slate-500 font-medium">Max 5 msg / 3s (5M Mute)</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Make Admin কন্ট্রোল -->
-          <div class="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-1.5">
-            <div class="flex items-center justify-between text-xs text-slate-400">
-              <label class="font-medium">Make Admin (User Numeric ID):</label>
-              <span class="text-[10px] text-slate-500">Auto Permissions</span>
-            </div>
-            <div class="flex gap-2">
-              <input type="text" id="user-${g.groupId}" placeholder="ইউজার আইডি (Ex: 582194821)"
-                class="flex-1 bg-slate-900 border border-slate-700 focus:border-indigo-500 px-3 py-1.5 rounded-lg text-xs outline-none text-white transition">
-              <button id="btn-admin-${g.groupId}" onclick="makeAdmin('${g.groupId}')"
-                class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white text-xs px-3.5 py-1.5 rounded-lg font-semibold transition">
-                Make Admin
-              </button>
-            </div>
-          </div>
-        </div>
-      `).join('');
     }
   </script>
 </body>

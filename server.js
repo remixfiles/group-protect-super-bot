@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
-// UptimeRobot / Health Check পিং রুট (যাতে Render স্লিপে না যায়)
+// Health Check রুট (UptimeRobot পিংয়ের জন্য)
 app.get('/', (req, res) => {
   res.status(200).send('GroupControl Bot is alive and active!');
 });
@@ -18,20 +18,46 @@ const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 
 // MongoDB স্কিমা
+const mutedUserSchema = new mongoose.Schema({
+  userId: { type: Number, required: true },
+  name: { type: String, default: "User" },
+  username: { type: String, default: "" },
+  reason: { type: String, default: "Spam" },
+  mutedAt: { type: Date, default: Date.now }
+});
+
 const groupSchema = new mongoose.Schema({
   groupId: { type: String, required: true, unique: true },
   groupTitle: { type: String, default: "Unknown Group" },
+  antiSpam: { type: Boolean, default: true },
+  antiFlood: { type: Boolean, default: true },
+  mutedUsers: [mutedUserSchema],
   addedAt: { type: Date, default: Date.now }
 });
 const Group = mongoose.model('Group', groupSchema);
 
-let authorizedGroupIds = new Set();
+// দ্রুত লুকআপের জন্য ক্যাশ
+let groupConfigCache = new Map();
+
+async function refreshCache() {
+  try {
+    const groups = await Group.find({});
+    groupConfigCache.clear();
+    groups.forEach(g => {
+      groupConfigCache.set(String(g.groupId), {
+        antiSpam: g.antiSpam,
+        antiFlood: g.antiFlood
+      });
+    });
+  } catch (err) {
+    console.error("Cache refresh error:", err.message);
+  }
+}
 
 mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Connected to MongoDB Atlas");
-    const groups = await Group.find({});
-    groups.forEach(g => authorizedGroupIds.add(String(g.groupId)));
+    await refreshCache();
   })
   .catch(err => console.error("MongoDB Error:", err));
 
@@ -47,7 +73,7 @@ async function callTelegram(method, data) {
   }
 }
 
-// টেলিগ্রাম ওয়েবহুক
+// ---------------- TELEGRAM WEBHOOK ---------------- //
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 
@@ -59,7 +85,8 @@ app.post('/webhook', async (req, res) => {
   const userId = msg.from.id;
   const messageId = msg.message_id;
 
-  if (!authorizedGroupIds.has(chatId)) return;
+  const groupConfig = groupConfigCache.get(chatId);
+  if (!groupConfig) return; // অনুমোদিত গ্রুপ না হলে ইগনোর
   if (msg.from.is_bot) return;
 
   try {
@@ -67,62 +94,108 @@ app.post('/webhook', async (req, res) => {
     const isAdmin = memberInfo && ['creator', 'administrator'].includes(memberInfo.result?.status);
     if (isAdmin) return;
 
-    // ১. Spam Control (Link & Mention)
-    let isSpam = false;
-    if (msg.entities) {
-      isSpam = msg.entities.some(e => ['url', 'text_link', 'mention'].includes(e.type));
+    const userName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || "User";
+    const userHandle = msg.from.username || "";
+
+    // ১. SPAM CONTROL (যদি টগল অন থাকে)
+    if (groupConfig.antiSpam) {
+      let isSpam = false;
+      if (msg.entities) {
+        isSpam = msg.entities.some(e => ['url', 'text_link', 'mention'].includes(e.type));
+      }
+      const content = (msg.text || msg.caption || "");
+      if (!isSpam && (/@\w+|https?:\/\/[^\s]+|t\.me\/[^\s]+/i.test(content))) {
+        isSpam = true;
+      }
+
+      if (isSpam) {
+        await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
+        const untilDate = Math.floor(Date.now() / 1000) + (3 * 24 * 60 * 60);
+        await callTelegram('restrictChatMember', {
+          chat_id: chatId,
+          user_id: userId,
+          until_date: untilDate,
+          permissions: { can_send_messages: false }
+        });
+
+        // MongoDB-তে মিউটেড লিস্টে সেভ
+        await Group.updateOne(
+          { groupId: chatId },
+          { 
+            $pull: { mutedUsers: { userId: userId } } 
+          }
+        );
+        await Group.updateOne(
+          { groupId: chatId },
+          { 
+            $push: { 
+              mutedUsers: { 
+                userId, 
+                name: userName, 
+                username: userHandle, 
+                reason: "Spam (Link/Mention)" 
+              } 
+            } 
+          }
+        );
+        return;
+      }
     }
-    const content = (msg.text || msg.caption || "");
-    if (!isSpam && (/@\w+|https?:\/\/[^\s]+|t\.me\/[^\s]+/i.test(content))) {
-      isSpam = true;
-    }
 
-    if (isSpam) {
-      await callTelegram('deleteMessage', { chat_id: chatId, message_id: messageId });
-      const untilDate = Math.floor(Date.now() / 1000) + (3 * 24 * 60 * 60);
-      await callTelegram('restrictChatMember', {
-        chat_id: chatId,
-        user_id: userId,
-        until_date: untilDate,
-        permissions: { can_send_messages: false }
-      });
-      return;
-    }
+    // ২. FLOOD CONTROL (যদি টগল অন থাকে)
+    if (groupConfig.antiFlood) {
+      const now = Date.now();
+      const trackKey = `${chatId}:${userId}`;
+      let userTimestamps = floodTracker.get(trackKey) || [];
 
-    // ২. Flood Control (৩ সেকেন্ডে ৬+ মেসেজ)
-    const now = Date.now();
-    const trackKey = `${chatId}:${userId}`;
-    let userTimestamps = floodTracker.get(trackKey) || [];
+      userTimestamps = userTimestamps.filter(t => now - t <= 3000);
+      userTimestamps.push(now);
+      floodTracker.set(trackKey, userTimestamps);
 
-    userTimestamps = userTimestamps.filter(t => now - t <= 3000);
-    userTimestamps.push(now);
-    floodTracker.set(trackKey, userTimestamps);
+      if (userTimestamps.length >= 6) {
+        const untilDate = Math.floor(Date.now() / 1000) + (5 * 60);
+        await callTelegram('restrictChatMember', {
+          chat_id: chatId,
+          user_id: userId,
+          until_date: untilDate,
+          permissions: { can_send_messages: false }
+        });
+        floodTracker.delete(trackKey);
 
-    if (userTimestamps.length >= 6) {
-      const untilDate = Math.floor(Date.now() / 1000) + (5 * 60);
-      await callTelegram('restrictChatMember', {
-        chat_id: chatId,
-        user_id: userId,
-        until_date: untilDate,
-        permissions: { can_send_messages: false }
-      });
-      floodTracker.delete(trackKey);
+        await Group.updateOne(
+          { groupId: chatId },
+          { $pull: { mutedUsers: { userId: userId } } }
+        );
+        await Group.updateOne(
+          { groupId: chatId },
+          { 
+            $push: { 
+              mutedUsers: { 
+                userId, 
+                name: userName, 
+                username: userHandle, 
+                reason: "Flood (6+ msg / 3s)" 
+              } 
+            } 
+          }
+        );
+      }
     }
   } catch (err) {
     console.error("Webhook processing error:", err.message);
   }
 });
 
-// এডমিন API অথেনটিকেশন মিডলওয়্যার
+// ---------------- ADMIN API ---------------- //
 const authMiddleware = (req, res, next) => {
   const { password } = req.body;
   if (!password || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ success: false, message: "ভুল পাসওয়ার্ড!" });
+    return res.status(401).json({ success: false, message: "ভুল পাসওয়ার্ড!" });
   }
   next();
 };
 
-// অনুমোদিত গ্রুপের লিস্ট
+// গ্রুপ লিস্ট
 app.post('/api/groups', authMiddleware, async (req, res) => {
   try {
     const groups = await Group.find({}).sort({ addedAt: -1 });
@@ -132,10 +205,10 @@ app.post('/api/groups', authMiddleware, async (req, res) => {
   }
 });
 
-// নতুন গ্রুপ যোগ
+// গ্রুপ অ্যাড
 app.post('/api/groups/add', authMiddleware, async (req, res) => {
   const { groupId } = req.body;
-  if (!groupId) return res.status(400).json({ success: false, message: "Group ID প্রয়োজন।" });
+  if (!groupId) return res.status(400).json({ success: false, message: "Group ID প্রয়োজন।" });
 
   try {
     const chatData = await callTelegram('getChat', { chat_id: groupId });
@@ -147,7 +220,7 @@ app.post('/api/groups/add', authMiddleware, async (req, res) => {
       { upsert: true, new: true }
     );
 
-    authorizedGroupIds.add(String(groupId));
+    await refreshCache();
     res.json({ success: true, group: newGroup });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -159,8 +232,68 @@ app.post('/api/groups/delete', authMiddleware, async (req, res) => {
   const { groupId } = req.body;
   try {
     await Group.deleteOne({ groupId: String(groupId) });
-    authorizedGroupIds.delete(String(groupId));
-    res.json({ success: true, message: "গ্রুপ সরানো হয়েছে।" });
+    await refreshCache();
+    res.json({ success: true, message: "গ্রুপ মুছে ফেলা হয়েছে।" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ফিচার টগল আপডেট (Anti-Spam / Anti-Flood)
+app.post('/api/groups/toggle', authMiddleware, async (req, res) => {
+  const { groupId, feature, value } = req.body;
+  if (!groupId || !feature) {
+    return res.status(400).json({ success: false, message: "তথ্য অসম্পূর্ণ।" });
+  }
+
+  try {
+    const updateQuery = {};
+    updateQuery[feature] = Boolean(value);
+
+    const updated = await Group.findOneAndUpdate(
+      { groupId: String(groupId) },
+      updateQuery,
+      { new: true }
+    );
+
+    await refreshCache();
+    res.json({ success: true, group: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ইউজার আনমিউট করা
+app.post('/api/groups/unmute', authMiddleware, async (req, res) => {
+  const { groupId, userId } = req.body;
+  if (!groupId || !userId) {
+    return res.status(400).json({ success: false, message: "Group ID ও User ID প্রয়োজন।" });
+  }
+
+  try {
+    // টেলিগ্রামে পারমিশন রিস্টোর করা
+    await callTelegram('restrictChatMember', {
+      chat_id: groupId,
+      user_id: userId,
+      permissions: {
+        can_send_messages: true,
+        can_send_audios: true,
+        can_send_documents: true,
+        can_send_photos: true,
+        can_send_videos: true,
+        can_send_other_messages: true,
+        can_add_web_page_previews: true
+      }
+    });
+
+    // ডাটাবেজ থেকে রিমুভ করা
+    const updated = await Group.findOneAndUpdate(
+      { groupId: String(groupId) },
+      { $pull: { mutedUsers: { userId: Number(userId) } } },
+      { new: true }
+    );
+
+    res.json({ success: true, message: "ইউজারকে সফলভাবে আনমিউট করা হয়েছে!", group: updated });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -170,7 +303,7 @@ app.post('/api/groups/delete', authMiddleware, async (req, res) => {
 app.post('/api/make-admin', authMiddleware, async (req, res) => {
   const { groupId, userId } = req.body;
   if (!groupId || !userId) {
-    return res.status(400).json({ success: false, message: "Group ID ও User ID প্রয়োজন।" });
+    return res.status(400).json({ success: false, message: "Group ID ও User ID প্রয়োজন।" });
   }
 
   const result = await callTelegram('promoteChatMember', {
@@ -187,9 +320,9 @@ app.post('/api/make-admin', authMiddleware, async (req, res) => {
   });
 
   if (result && result.ok) {
-    res.json({ success: true, message: "সফলভাবে অ্যাডমিন করা হয়েছে!" });
+    res.json({ success: true, message: "সফলভাবে অ্যাডমিন করা হয়েছে!" });
   } else {
-    res.status(400).json({ success: false, message: result?.description || "ব্যর্থ হয়েছে।" });
+    res.status(400).json({ success: false, message: result?.description || "ব্যর্থ হয়েছে।" });
   }
 });
 
