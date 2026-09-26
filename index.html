@@ -22,7 +22,7 @@
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen relative pb-10">
 
-  <!-- ==================== ১. লক স্ক্রিন ==================== -->
+  <!-- ১. লক স্ক্রিন -->
   <div id="lockScreen" class="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
     <div class="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
       <div class="text-center space-y-3">
@@ -50,9 +50,8 @@
     </div>
   </div>
 
-  <!-- ==================== ২. মূল ড্যাশবোর্ড ==================== -->
+  <!-- ২. মূল ড্যাশবোর্ড -->
   <div id="mainDashboard" class="hidden">
-    <!-- হেডার -->
     <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
       <div class="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -95,18 +94,33 @@
           <span id="groupCountBadge" class="text-xs bg-slate-800 text-sky-400 px-2.5 py-0.5 rounded-full border border-slate-700">০টি গ্রুপ</span>
         </div>
 
-        <div id="groupsList" class="space-y-2.5">
-          <!-- গ্রুপের আইটেম লিস্ট এখানে ডায়নামিকভাবে আসবে -->
-        </div>
+        <div id="groupsList" class="space-y-2.5"></div>
+      </section>
+
+      <!-- আলাদা পেইজ: ব্রডকাস্ট শিডিউলার বাটন -->
+      <section class="pt-4 border-t border-slate-800/80">
+        <a href="broadcast.html" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 active:scale-[0.99] p-4 rounded-2xl border border-sky-400/20 shadow-xl flex items-center justify-between group transition">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white text-xl">
+              <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-white">১২ ঘণ্টার অটো-মেসেজ ও ব্রডকাস্ট ম্যানেজার</h3>
+              <p class="text-xs text-sky-100">ইমেজ, ক্যাপশন ও ডায়নামিক বাটন সাজিয়ে শিডিউল করুন</p>
+            </div>
+          </div>
+          <div class="text-white text-lg mr-2 group-hover:translate-x-1 transition">
+            <i class="fa-solid fa-arrow-right"></i>
+          </div>
+        </a>
       </section>
     </main>
   </div>
 
-  <!-- ==================== ৩. বটম স্লাইড কন্ট্রোল প্যানেল (Drawer Sheet) ==================== -->
+  <!-- ৩. বটম স্লাইড কন্ট্রোল প্যানেল -->
   <div id="slideBackdrop" onclick="closeControlPanel()" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 hidden transition-opacity"></div>
 
   <div id="slidePanel" class="slide-panel fixed bottom-0 left-0 right-0 max-w-2xl mx-auto bg-slate-900 border-t border-x border-slate-700/80 rounded-t-3xl p-6 z-50 shadow-2xl space-y-6 max-h-[85vh] overflow-y-auto">
-    <!-- ড্র্যাগ হ্যান্ডল ও হেডার -->
     <div>
       <div class="w-12 h-1.5 bg-slate-700 rounded-full mx-auto mb-4 cursor-pointer" onclick="closeControlPanel()"></div>
       <div class="flex items-start justify-between">
@@ -120,11 +134,10 @@
       </div>
     </div>
 
-    <!-- ফিচার টগল বাটন সেকশন -->
+    <!-- ফিচার টগল বাটন -->
     <div class="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
       <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">মডারেশন ফিচারসমূহ</h4>
 
-      <!-- এন্টি-ফরোয়ার্ড টগল -->
       <div class="flex items-center justify-between py-1">
         <div>
           <p class="text-sm font-semibold text-white">Anti-Forward Control</p>
@@ -132,13 +145,12 @@
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" id="toggleForward" onchange="toggleFeature('antiForward', this.checked)" class="sr-only peer">
-          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+          <div class="w-11 h-6 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
         </label>
       </div>
 
       <hr class="border-slate-800/80">
 
-      <!-- এন্টি-স্প্যাম টগল -->
       <div class="flex items-center justify-between py-1">
         <div>
           <p class="text-sm font-semibold text-white">Anti-Spam (Link & Mention Block)</p>
@@ -146,13 +158,12 @@
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" id="toggleSpam" onchange="toggleFeature('antiSpam', this.checked)" class="sr-only peer">
-          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+          <div class="w-11 h-6 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
         </label>
       </div>
 
       <hr class="border-slate-800/80">
 
-      <!-- এন্টি-ফ্লাড টগল -->
       <div class="flex items-center justify-between py-1">
         <div>
           <p class="text-sm font-semibold text-white">Anti-Flood Control</p>
@@ -160,24 +171,21 @@
         </div>
         <label class="relative inline-flex items-center cursor-pointer">
           <input type="checkbox" id="toggleFlood" onchange="toggleFeature('antiFlood', this.checked)" class="sr-only peer">
-          <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+          <div class="w-11 h-6 bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
         </label>
       </div>
     </div>
 
-    <!-- মিউটেড ইউজার লিস্ট ও আনমিউট সেকশন -->
+    <!-- মিউটেড ইউজার লিস্ট -->
     <div class="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800">
       <div class="flex items-center justify-between">
         <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">মিউটেড ইউজার তালিকা</h4>
         <span id="mutedCountBadge" class="text-[11px] bg-rose-950/50 text-rose-300 border border-rose-800 px-2 py-0.5 rounded-full">০ জন</span>
       </div>
-
-      <div id="mutedUsersSection" class="space-y-2">
-        <!-- ডায়নামিক মিউটেড ইউজার লিস্ট -->
-      </div>
+      <div id="mutedUsersSection" class="space-y-2"></div>
     </div>
 
-    <!-- Make Admin সেকশন -->
+    <!-- Make Admin -->
     <div class="bg-slate-950/60 p-4 rounded-2xl border border-slate-800 space-y-2">
       <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400">Make Admin (মেম্বারকে অ্যাডমিন করুন)</h4>
       <div class="flex gap-2">
@@ -190,7 +198,6 @@
       </div>
     </div>
 
-    <!-- গ্রুপ ডিলিট বাটন -->
     <div class="pt-2 text-right">
       <button onclick="deleteCurrentGroup()" class="text-rose-400 hover:text-rose-300 text-xs bg-rose-950/30 border border-rose-900 px-3 py-1.5 rounded-xl transition">
         <i class="fa-solid fa-trash-can mr-1"></i> এই গ্রুপটি সম্পূর্ণ রিমুভ করুন
@@ -289,9 +296,7 @@
           renderGroupsList(loadedGroups);
           if (currentActiveGroup) {
             const updatedGroup = loadedGroups.find(g => String(g.groupId) === String(currentActiveGroup.groupId));
-            if (updatedGroup) {
-              currentActiveGroup = updatedGroup;
-            }
+            if (updatedGroup) currentActiveGroup = updatedGroup;
           }
         }
       } catch (e) {
@@ -335,7 +340,6 @@
       }).join('');
     }
 
-    // স্লাইড প্যানেল ওপেন
     async function openControlPanel(groupId) {
       await reloadData();
       const group = loadedGroups.find(g => String(g.groupId) === String(groupId));
@@ -348,7 +352,6 @@
       document.getElementById("toggleSpam").checked = group.antiSpam !== false;
       document.getElementById("toggleFlood").checked = group.antiFlood !== false;
 
-      // মিউটেড ইউজার রেন্ডার
       const mutedList = group.mutedUsers || [];
       document.getElementById("mutedCountBadge").innerText = `${mutedList.length} জন`;
       const mutedContainer = document.getElementById("mutedUsersSection");
@@ -380,7 +383,6 @@
       currentActiveGroup = null;
     }
 
-    // ফিচার টগল করা
     async function toggleFeature(feature, value) {
       if (!currentActiveGroup) return;
       const password = getPassword();
@@ -402,7 +404,6 @@
       }
     }
 
-    // ইউজার আনমিউট করা
     async function unmuteUser(groupId, userId) {
       const password = getPassword();
 
@@ -424,7 +425,6 @@
       }
     }
 
-    // Make Admin সাবমিট
     async function submitMakeAdmin() {
       if (!currentActiveGroup) return;
       const password = getPassword();
@@ -454,7 +454,6 @@
       }
     }
 
-    // গ্রুপ যোগ করা
     async function addNewGroup() {
       const password = getPassword();
       const groupId = document.getElementById("newGroupId").value.trim();
@@ -486,7 +485,6 @@
       }
     }
 
-    // গ্রুপ মুছে ফেলা
     async function deleteCurrentGroup() {
       if (!currentActiveGroup) return;
       if (!confirm(`আপনি কি নিশ্চিত '${currentActiveGroup.groupTitle}' সম্পূর্ণ রিমুভ করবেন?`)) return;

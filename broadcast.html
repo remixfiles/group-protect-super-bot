@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auto Broadcast Scheduler - GroupControl</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Hind Siliguri', sans-serif;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen pb-16">
+
+  <!-- হেডার -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-3xl mx-auto px-4 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <a href="index.html" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-arrow-left"></i>
+        </a>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-white">১২ ঘণ্টার অটো-মেসেজ শিডিউলার</h1>
+          <p class="text-[11px] text-sky-400">প্রতি ১২ ঘণ্টা পর পুরনো মেসেজ ডিলিট হয়ে নতুনটি যাবে</p>
+        </div>
+      </div>
+      <a href="index.html" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-xl border border-slate-700 transition">
+        হোম ড্যাশবোর্ড
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    
+    <!-- ১. ইমেজ আপলোড সেকশন -->
+    <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+      <label class="block text-sm font-bold text-slate-200">
+        <i class="fa-regular fa-image text-sky-400 mr-1.5"></i> ব্রডকাস্ট ইমেজ আপলোড করুন
+      </label>
+      <input type="file" id="imageInput" accept="image/*" onchange="handleImagePreview(event)"
+        class="block w-full text-xs text-slate-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-600 file:text-white hover:file:bg-sky-500 cursor-pointer">
+      
+      <!-- প্রিভিউ বক্স -->
+      <div id="imagePreviewContainer" class="hidden relative rounded-xl overflow-hidden border border-slate-800 max-h-64 bg-slate-950 flex items-center justify-center">
+        <img id="imagePreview" src="" alt="Preview" class="max-h-64 object-contain">
+        <button type="button" onclick="removeImage()" class="absolute top-2 right-2 bg-rose-600/80 hover:bg-rose-600 text-white rounded-lg p-1.5 text-xs">
+          <i class="fa-solid fa-trash-can"></i> ছবি মুছুন
+        </button>
+      </div>
+    </div>
+
+    <!-- ২. মেসেজ টেক্সট / ক্যাপশন -->
+    <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-3">
+      <label class="block text-sm font-bold text-slate-200">
+        <i class="fa-regular fa-message text-indigo-400 mr-1.5"></i> মেসেজ ক্যাপশন / টেক্সট
+      </label>
+      <textarea id="broadcastText" rows="4" placeholder="আপনার মেসেজ বা নোটিশ এখানে লিখুন..."
+        class="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl p-3 text-sm text-slate-100 outline-none transition"></textarea>
+    </div>
+
+    <!-- ৩. ইনলাইন বাটন বিল্ডার সেকশন -->
+    <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold text-slate-200">
+            <i class="fa-solid fa-link text-emerald-400 mr-1.5"></i> ইনলাইন বাটন সেকশন
+          </h3>
+          <p class="text-xs text-slate-400">ডান পাশের (+) বাটন দিয়ে পাশাপাশি কলাম, এবং বাম পাশের (+) দিয়ে নিচের রো তৈরি করুন</p>
+        </div>
+      </div>
+
+      <!-- বাটন কন্টেইনার -->
+      <div id="buttonRowsContainer" class="space-y-4">
+        <!-- ডায়নামিক রো এখানে জেনারেট হবে -->
+      </div>
+
+      <!-- রো ও কলাম কন্ট্রোল বাটনদ্বয় -->
+      <div class="pt-2 flex items-center gap-3">
+        <!-- বামের প্লাস: নতুন রো / লাইন তৈরি করবে -->
+        <button type="button" onclick="addNewRow()"
+          class="flex-1 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-sky-400 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plus-circle text-base"></i> <span>নতুন লাইন / রো যোগ করুন (বামের +)</span>
+        </button>
+
+        <!-- ডানের প্লাস: বর্তমান লাস্ট রো-তে ডান পাশে আরেকটি বাটন যোগ করবে -->
+        <button type="button" onclick="addColumnToLastRow()"
+          class="flex-1 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700 text-emerald-400 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2">
+          <i class="fa-solid fa-plus-square text-base"></i> <span>ডান পাশের বাটন যোগ করুন (ডানের +)</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- সেভ বাটন -->
+    <div class="pt-2">
+      <button type="button" onclick="saveBroadcastSettings()" id="saveBtn"
+        class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white py-3.5 rounded-2xl text-sm font-bold shadow-lg shadow-emerald-600/20 transition flex items-center justify-center gap-2">
+        <i class="fa-solid fa-floppy-disk"></i> <span>সেভ করুন ও শিডিউলার সক্রিয় করুন</span>
+      </button>
+    </div>
+
+  </main>
+
+  <script>
+    const BACKEND_URL = "https://group-protect-super-bot.onrender.com";
+    let currentBase64Image = "";
+    
+    // বাটন স্ট্রাকচার: [ [ {text, url}, {text, url} ], [ {text, url} ] ]
+    let buttonGrid = [
+      [{ text: "", url: "" }]
+    ];
+
+    function getPassword() {
+      return sessionStorage.getItem('tg_admin_password') || "";
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+      const password = getPassword();
+      if (!password) {
+        alert("প্রথমে মূল ড্যাশবোর্ডে লগইন করুন!");
+        window.location.href = "index.html";
+        return;
+      }
+      await loadExistingConfig();
+    });
+
+    // বিদ্যমান কনফিগ লোড
+    async function loadExistingConfig() {
+      const password = getPassword();
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/broadcast/get`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+        if (data.success && data.config) {
+          document.getElementById("broadcastText").value = data.config.text || "";
+          if (data.config.imageData) {
+            currentBase64Image = data.config.imageData;
+            document.getElementById("imagePreview").src = currentBase64Image;
+            document.getElementById("imagePreviewContainer").classList.remove("hidden");
+          }
+          if (data.config.buttons && data.config.buttons.length > 0) {
+            buttonGrid = data.config.buttons;
+          }
+          renderButtons();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // ইমেজ আপলোড হ্যান্ডলার
+    function handleImagePreview(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        currentBase64Image = e.target.result;
+        document.getElementById("imagePreview").src = currentBase64Image;
+        document.getElementById("imagePreviewContainer").classList.remove("hidden");
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeImage() {
+      currentBase64Image = "";
+      document.getElementById("imageInput").value = "";
+      document.getElementById("imagePreviewContainer").classList.add("hidden");
+      document.getElementById("imagePreview").src = "";
+    }
+
+    // বাটন রেন্ডারার
+    function renderButtons() {
+      const container = document.getElementById("buttonRowsContainer");
+      container.innerHTML = buttonGrid.map((row, rIdx) => `
+        <div class="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
+          <div class="flex items-center justify-between text-xs text-slate-400">
+            <span class="font-semibold text-slate-300">লাইন / রো #${rIdx + 1}</span>
+            ${buttonGrid.length > 1 ? `
+              <button type="button" onclick="removeRow(${rIdx})" class="text-rose-400 hover:text-rose-300 text-xs">
+                <i class="fa-solid fa-trash-can"></i> এই লাইন মুছুন
+              </button>` : ''}
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-${Math.min(row.length, 3)} gap-2.5">
+            ${row.map((btn, cIdx) => `
+              <div class="bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 space-y-1.5 relative">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] text-sky-400 font-semibold">বাটন #${cIdx + 1}</span>${row.length > 1 ? `
+                    <button type="button" onclick="removeColumn(${rIdx}, ${cIdx})" class="text-rose-400 hover:text-rose-300 text-[10px]">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>` : ''}
+                </div>
+                <input type="text" placeholder="বাটনের নাম" value="${btn.text || ''}"
+                  oninput="updateButtonData(${rIdx},${cIdx}, 'text', this.value)"
+                  class="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 px-2.5 py-1.5 rounded text-xs text-white outline-none">
+                <input type="text" placeholder="বাটনের লিঙ্ক (https://...)" value="${btn.url || ''}"
+                  oninput="updateButtonData(${rIdx},${cIdx}, 'url', this.value)"
+                  class="w-full bg-slate-950 border border-slate-800 focus:border-sky-500 px-2.5 py-1.5 rounded text-xs text-white outline-none">
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateButtonData(rIdx, cIdx, field, value) {
+      buttonGrid[rIdx][cIdx][field] = value;
+    }
+
+    // বামের প্লাস: নতুন রো
+    function addNewRow() {
+      buttonGrid.push([{ text: "", url: "" }]);
+      renderButtons();
+    }
+
+    // ডানের প্লাস: লাস্ট রোতে ডান পাশের বাটন
+    function addColumnToLastRow() {
+      if (buttonGrid.length === 0) {
+        buttonGrid.push([{ text: "", url: "" }]);
+      } else {
+        const lastRow = buttonGrid[buttonGrid.length - 1];
+        if (lastRow.length >= 3) {
+          alert("এক রোতে সর্বোচ্চ ৩টি বাটন রাখা সুবিধাজনক!");
+        }
+        lastRow.push({ text: "", url: "" });
+      }
+      renderButtons();
+    }
+
+    function removeRow(rIdx) {
+      buttonGrid.splice(rIdx, 1);
+      if (buttonGrid.length === 0) buttonGrid.push([{ text: "", url: "" }]);
+      renderButtons();
+    }
+
+    function removeColumn(rIdx, cIdx) {
+      buttonGrid[rIdx].splice(cIdx, 1);
+      if (buttonGrid[rIdx].length === 0) {
+        buttonGrid.splice(rIdx, 1);
+      }
+      if (buttonGrid.length === 0) buttonGrid.push([{ text: "", url: "" }]);
+      renderButtons();
+    }
+
+    // সেটিংস সেভ
+    async function saveBroadcastSettings() {
+      const password = getPassword();
+      const text = document.getElementById("broadcastText").value.trim();
+      const saveBtn = document.getElementById("saveBtn");
+
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> সেভ হচ্ছে...`;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/broadcast/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            password,
+            imageData: currentBase64Image,
+            text,
+            buttons: buttonGrid
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert("সফলভাবে সেভ হয়েছে! বট এখন প্রতি ১২ ঘণ্টা পর পর আগের মেসেজ ডিলিট করে নতুন এই মেসেজ পাঠাবে।");
+        } else {
+          alert(data.message || "সেভ করা যায়নি!");
+        }
+      } catch (err) {
+        alert("সার্ভার রিকোয়েস্ট ব্যর্থ হয়েছে!");
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = `<i class="fa-solid fa-floppy-disk"></i> <span>সেভ করুন ও শিডিউলার সক্রিয় করুন</span>`;
+      }
+    }
+  </script>
+</body>
+</html>

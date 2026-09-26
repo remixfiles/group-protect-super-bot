@@ -5,7 +5,9 @@ const axios = require('axios');
 const cors = require('cors');
 
 const app = express();
-app.use(express.json());
+// ছবির Base64 সাইজের জন্য লিমিট বাড়ানো হয়েছে
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(cors());
 
 // Health Check রুট (UptimeRobot পিংয়ের জন্য)
@@ -24,7 +26,7 @@ const mutedUserSchema = new mongoose.Schema({
   name: { type: String, default: "User" },
   username: { type: String, default: "" },
   reason: { type: String, default: "Spam" },
-  mutedAt: { type: Date, default: Date.now, expires: 259200 } // ৩ দিন পর অটোমেটিক ডিলিট
+  mutedAt: { type: Date, default: Date.now, expires: 259200 }
 });
 const MutedUser = mongoose.model('MutedUser', mutedUserSchema);
 
@@ -34,12 +36,22 @@ const groupSchema = new mongoose.Schema({
   groupTitle: { type: String, default: "Unknown Group" },
   antiSpam: { type: Boolean, default: true },
   antiFlood: { type: Boolean, default: true },
-  antiForward: { type: Boolean, default: true }, // নতুন এন্টি-ফরোয়ার্ড ফিচার
+  antiForward: { type: Boolean, default: true },
+  lastAutoMsgId: { type: Number, default: null }, // আগের অটো মেসেজ আইডি
+  lastBroadcastAt: { type: Date, default: null }, // শেষ পাঠানোর সময়
   addedAt: { type: Date, default: Date.now }
 });
 const Group = mongoose.model('Group', groupSchema);
 
-// দ্রুত লুকআপের জন্য ক্যাশ
+// ৩. অটো ব্রডকাস্ট কনফিগ স্কিমা
+const broadcastSchema = new mongoose.Schema({
+  imageData: { type: String, default: "" }, // Base64 বা Image URL
+  text: { type: String, default: "" },
+  buttons: { type: Array, default: [] }, // [[ {text, url}, {text, url} ], [ ... ]]
+  updatedAt: { type: Date, default: Date.now }
+});
+const BroadcastConfig = mongoose.model('BroadcastConfig', broadcastSchema);
+
 let groupConfigCache = new Map();
 
 async function refreshCache() {
@@ -62,6 +74,7 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Connected to MongoDB Atlas");
     await refreshCache();
+    start12HourScheduler(); // অটো শিডিউলার চালু
   })
   .catch(err => console.error("MongoDB Error:", err));
 
@@ -77,7 +90,7 @@ async function callTelegram(method, data) {
   }
 }
 
-// মিউটেড ইউজার সেভ করার নির্ভরযোগ্য ফাংশন
+// মিউটেড ইউজার সেভ করার ফাংশন
 async function recordMutedUser(chatId, userId, name, username, reason) {
   try {
     const sChatId = String(chatId);
@@ -95,6 +108,84 @@ async function recordMutedUser(chatId, userId, name, username, reason) {
   }
 }
 
+// ---------------- ১২ ঘণ্টার অটো-শিডিউলার ইঞ্জিন ---------------- //
+async function executeBroadcastJob() {
+  try {
+    const config = await BroadcastConfig.findOne({});
+    if (!config || (!config.imageData && !config.text)) return;
+
+    const groups = await Group.find({});
+    const twelveHoursMs = 12 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    for (const group of groups) {
+      const lastSent = group.lastBroadcastAt ? new Date(group.lastBroadcastAt).getTime() : 0;
+      
+      // ১২ ঘণ্টা পার হলে অথবা আগে কখনোই না পাঠানো হলে
+      if (now - lastSent >= twelveHoursMs) {
+        
+        // ১. আগের মেসেজ থাকলে ডিলিট করা
+        if (group.lastAutoMsgId) {
+          await callTelegram('deleteMessage', {
+            chat_id: group.groupId,
+            message_id: group.lastAutoMsgId
+          });
+        }
+
+        // ২. ইনলাইন কিবোর্ড ফরম্যাট তৈরি
+        const replyMarkup = {
+          inline_keyboard: (config.buttons || []).map(row => 
+            row.filter(b => b.text && b.url).map(b => ({
+              text: b.text,
+              url: b.url.startsWith('http') ? b.url : `https://${b.url}`
+            }))
+          ).filter(row => row.length > 0)
+        };
+
+        let newMsgId = null;
+
+        // ৩. ছবি থাকলে sendPhoto, না থাকলে sendMessage
+        if (config.imageData) {
+          const sent = await callTelegram('sendPhoto', {
+            chat_id: group.groupId,
+            photo: config.imageData,
+            caption: config.text || "",
+            reply_markup: replyMarkup.inline_keyboard.length > 0 ? replyMarkup : undefined
+          });
+          if (sent && sent.ok) newMsgId = sent.result.message_id;
+        } else {
+          const sent = await callTelegram('sendMessage', {
+            chat_id: group.groupId,
+            text: config.text || "📢 Notice",
+            reply_markup: replyMarkup.inline_keyboard.length > 0 ? replyMarkup : undefined
+          });
+          if (sent && sent.ok) newMsgId = sent.result.message_id;
+        }
+
+        // ৪. নতুন মেসেজ আইডি ও টাইম ডাটাবেজে সংরক্ষণ
+        if (newMsgId) {
+          await Group.updateOne(
+            { groupId: group.groupId },
+            { 
+              lastAutoMsgId: newMsgId, 
+              lastBroadcastAt: new Date() 
+            }
+          );
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Auto broadcast error:", err.message);
+  }
+}
+
+function start12HourScheduler() {
+  // সার্ভার রান হওয়ার ৩০ সেকেন্ড পর প্রথম চেক
+  setTimeout(executeBroadcastJob, 30000);
+  // প্রতি ৩ মিনিট পর পর টাইমিং চেক করবে
+  setInterval(executeBroadcastJob, 3 * 60 * 1000);
+}
+
 // ---------------- TELEGRAM WEBHOOK ---------------- //
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
@@ -108,7 +199,7 @@ app.post('/webhook', async (req, res) => {
   const messageId = msg.message_id;
 
   const groupConfig = groupConfigCache.get(chatId);
-  if (!groupConfig) return; // অনুমোদিত গ্রুপ না হলে ইগনোর
+  if (!groupConfig) return;
   if (msg.from.is_bot) return;
 
   try {
@@ -119,7 +210,7 @@ app.post('/webhook', async (req, res) => {
     const userName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || "User";
     const userHandle = msg.from.username || "";
 
-    // ১. ANTI-FORWARD CONTROL (অন্য গ্রুপ/চ্যানেল/বট/ইউজারের মেসেজ ফরোয়ার্ড ব্লক)
+    // ১. ANTI-FORWARD CONTROL
     const isForwarded = Boolean(
       msg.forward_origin || 
       msg.forward_from || 
@@ -142,7 +233,7 @@ app.post('/webhook', async (req, res) => {
       return;
     }
 
-    // ২. SPAM CONTROL (যদি টগল অন থাকে)
+    // ২. SPAM CONTROL
     if (groupConfig.antiSpam) {
       let isSpam = false;
       if (msg.entities) {
@@ -168,7 +259,7 @@ app.post('/webhook', async (req, res) => {
       }
     }
 
-    // ৩. FLOOD CONTROL (যদি টগল অন থাকে)
+    // ৩. FLOOD CONTROL
     if (groupConfig.antiFlood) {
       const now = Date.now();
       const trackKey = `${chatId}:${userId}`;
@@ -205,7 +296,6 @@ const authMiddleware = (req, res, next) => {
   next();
 };
 
-// গ্রুপ লিস্ট (মিউটেড ইউজারসহ ফেচ)
 app.post('/api/groups', authMiddleware, async (req, res) => {
   try {
     const groups = await Group.find({}).sort({ addedAt: -1 }).lean();
@@ -219,7 +309,6 @@ app.post('/api/groups', authMiddleware, async (req, res) => {
   }
 });
 
-// গ্রুপ অ্যাড
 app.post('/api/groups/add', authMiddleware, async (req, res) => {
   const { groupId } = req.body;
   if (!groupId) return res.status(400).json({ success: false, message: "Group ID প্রয়োজন।" });
@@ -241,7 +330,6 @@ app.post('/api/groups/add', authMiddleware, async (req, res) => {
   }
 });
 
-// গ্রুপ ডিলিট
 app.post('/api/groups/delete', authMiddleware, async (req, res) => {
   const { groupId } = req.body;
   try {
@@ -254,7 +342,6 @@ app.post('/api/groups/delete', authMiddleware, async (req, res) => {
   }
 });
 
-// ফিচার টগল আপডেট (Anti-Spam / Anti-Flood / Anti-Forward)
 app.post('/api/groups/toggle', authMiddleware, async (req, res) => {
   const { groupId, feature, value } = req.body;
   if (!groupId || !feature) {
@@ -278,7 +365,6 @@ app.post('/api/groups/toggle', authMiddleware, async (req, res) => {
   }
 });
 
-// ইউজার আনমিউট করা
 app.post('/api/groups/unmute', authMiddleware, async (req, res) => {
   const { groupId, userId } = req.body;
   if (!groupId || !userId) {
@@ -301,14 +387,12 @@ app.post('/api/groups/unmute', authMiddleware, async (req, res) => {
     });
 
     await MutedUser.deleteMany({ groupId: String(groupId), userId: Number(userId) });
-
     res.json({ success: true, message: "ইউজারকে সফলভাবে আনমিউট করা হয়েছে!" });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// Make Admin
 app.post('/api/make-admin', authMiddleware, async (req, res) => {
   const { groupId, userId } = req.body;
   if (!groupId || !userId) {
@@ -332,6 +416,38 @@ app.post('/api/make-admin', authMiddleware, async (req, res) => {
     res.json({ success: true, message: "সফলভাবে অ্যাডমিন করা হয়েছে!" });
   } else {
     res.status(400).json({ success: false, message: result?.description || "ব্যর্থ হয়েছে।" });
+  }
+});
+
+// ---------------- ব্রডকাস্ট কনফিগারেশন API ---------------- //
+app.post('/api/broadcast/get', authMiddleware, async (req, res) => {
+  try {
+    let config = await BroadcastConfig.findOne({});
+    if (!config) {
+      config = await BroadcastConfig.create({ imageData: "", text: "", buttons: [[]] });
+    }
+    res.json({ success: true, config });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.post('/api/broadcast/save', authMiddleware, async (req, res) => {
+  const { imageData, text, buttons } = req.body;
+  try {
+    let config = await BroadcastConfig.findOne({});
+    if (!config) {
+      config = new BroadcastConfig();
+    }
+    config.imageData = imageData || "";
+    config.text = text || "";
+    config.buttons = buttons || [];
+    config.updatedAt = new Date();
+    await config.save();
+
+    res.json({ success: true, message: "ব্রডকাস্ট শিডিউলার সেটিংস সেভ হয়েছে!" });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 
