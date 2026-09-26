@@ -8,6 +8,11 @@ const app = express();
 app.use(express.json());
 app.use(cors());
 
+// UptimeRobot / Health Check পিং রুট (যাতে Render স্লিপে না যায়)
+app.get('/', (req, res) => {
+  res.status(200).send('GroupControl Bot is alive and active!');
+});
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -42,7 +47,7 @@ async function callTelegram(method, data) {
   }
 }
 
-// টেলিগ্রাম ওয়েবহুক
+// টেলিগ্রাম ওয়েবহুক
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
 
@@ -108,11 +113,11 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-// এডমিন API অথেনটিকেশন মিডলওয়্যার
+// এডমিন API অথেনটিকেশন মিডলওয়্যার
 const authMiddleware = (req, res, next) => {
   const { password } = req.body;
   if (!password || password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ success: false, message: "ভুল পাসওয়ার্ড!" });
+    return res.status(401).json({ success: false, message: "ভুল পাসওয়ার্ড!" });
   }
   next();
 };
@@ -130,7 +135,7 @@ app.post('/api/groups', authMiddleware, async (req, res) => {
 // নতুন গ্রুপ যোগ
 app.post('/api/groups/add', authMiddleware, async (req, res) => {
   const { groupId } = req.body;
-  if (!groupId) return res.status(400).json({ success: false, message: "Group ID প্রয়োজন।" });
+  if (!groupId) return res.status(400).json({ success: false, message: "Group ID প্রয়োজন।" });
 
   try {
     const chatData = await callTelegram('getChat', { chat_id: groupId });
@@ -155,7 +160,7 @@ app.post('/api/groups/delete', authMiddleware, async (req, res) => {
   try {
     await Group.deleteOne({ groupId: String(groupId) });
     authorizedGroupIds.delete(String(groupId));
-    res.json({ success: true, message: "গ্রুপ সরানো হয়েছে।" });
+    res.json({ success: true, message: "গ্রুপ সরানো হয়েছে।" });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -165,7 +170,7 @@ app.post('/api/groups/delete', authMiddleware, async (req, res) => {
 app.post('/api/make-admin', authMiddleware, async (req, res) => {
   const { groupId, userId } = req.body;
   if (!groupId || !userId) {
-    return res.status(400).json({ success: false, message: "Group ID ও User ID প্রয়োজন।" });
+    return res.status(400).json({ success: false, message: "Group ID ও User ID প্রয়োজন।" });
   }
 
   const result = await callTelegram('promoteChatMember', {
@@ -182,9 +187,9 @@ app.post('/api/make-admin', authMiddleware, async (req, res) => {
   });
 
   if (result && result.ok) {
-    res.json({ success: true, message: "সফলভাবে অ্যাডমিন করা হয়েছে!" });
+    res.json({ success: true, message: "সফলভাবে অ্যাডমিন করা হয়েছে!" });
   } else {
-    res.status(400).json({ success: false, message: result?.description || "ব্যর্থ হয়েছে।" });
+    res.status(400).json({ success: false, message: result?.description || "ব্যর্থ হয়েছে।" });
   }
 });
 
