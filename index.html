@@ -210,8 +210,22 @@
     let loadedGroups = [];
     let currentActiveGroup = null;
 
+    function getPassword() {
+      return localStorage.getItem('tg_admin_password') || sessionStorage.getItem('tg_admin_password') || "";
+    }
+
+    function setPassword(pass) {
+      localStorage.setItem('tg_admin_password', pass);
+      sessionStorage.setItem('tg_admin_password', pass);
+    }
+
+    function clearPassword() {
+      localStorage.removeItem('tg_admin_password');
+      sessionStorage.removeItem('tg_admin_password');
+    }
+
     window.addEventListener('DOMContentLoaded', async () => {
-      const savedPass = sessionStorage.getItem('tg_admin_password');
+      const savedPass = getPassword();
       if (savedPass) {
         await verifyAndUnlock(savedPass);
       }
@@ -260,7 +274,7 @@
         const data = await res.json();
 
         if (data.success) {
-          sessionStorage.setItem('tg_admin_password', password);
+          setPassword(password);
           document.getElementById("lockScreen").classList.add("hidden");
           document.getElementById("mainDashboard").classList.remove("hidden");
           loadedGroups = data.groups;
@@ -274,12 +288,8 @@
     }
 
     function handleLogout() {
-      sessionStorage.removeItem('tg_admin_password');
+      clearPassword();
       location.reload();
-    }
-
-    function getPassword() {
-      return sessionStorage.getItem('tg_admin_password') || "";
     }
 
     async function reloadData() {
