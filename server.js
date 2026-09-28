@@ -150,12 +150,40 @@ async function executeBroadcastJob() {
         let newMsgId = null;
 
         if (config.imageData) {
-          const sent = await callTelegram('sendPhoto', {
-            chat_id: group.groupId,
-            photo: config.imageData,
-            caption: config.text || "",
-            reply_markup: replyMarkup.inline_keyboard.length > 0 ? replyMarkup : undefined
-          });
+          let sent = null;
+          // যদি Base64 ইমেজ হয়
+          if (config.imageData.startsWith('data:image')) {
+            try {
+              const base64Parts = config.imageData.split(',');
+              const mimeMatch = base64Parts[0].match(/:(.*?);/);
+              const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+              const imgBuffer = Buffer.from(base64Parts[1], 'base64');
+
+              const FormData = require('form-data');
+              const form = new FormData();
+              form.append('chat_id', group.groupId);
+              form.append('photo', imgBuffer, { filename: 'broadcast.jpg', contentType: mimeType });
+              if (config.text) form.append('caption', config.text);
+              if (replyMarkup.inline_keyboard.length > 0) {
+                form.append('reply_markup', JSON.stringify(replyMarkup));
+              }
+
+              const res = await axios.post(`${TELEGRAM_API}/sendPhoto`, form, {
+                headers: form.getHeaders()
+              });
+              sent = res.data;
+            } catch (err) {
+              console.error("sendPhoto multipart error:", err.response?.data?.description || err.message);
+            }
+          } else {
+            // সাধারণ ওয়েব লিঙ্ক হলে
+            sent = await callTelegram('sendPhoto', {
+              chat_id: group.groupId,
+              photo: config.imageData,
+              caption: config.text || "",
+              reply_markup: replyMarkup.inline_keyboard.length > 0 ? replyMarkup : undefined
+            });
+          }
           if (sent && sent.ok) newMsgId = sent.result.message_id;
         } else {
           const sent = await callTelegram('sendMessage', {
