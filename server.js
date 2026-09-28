@@ -13,9 +13,9 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// ২. ছবির Base64 ডাটা হ্যান্ডেল করতে লিমিট 50mb নির্ধারণ
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+// ২. স্ট্যান্ডার্ড JSON পে-লোড (হালকা মেমরি ব্যবহারের জন্য)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Health Check রুট (UptimeRobot পিংয়ের জন্য)
 app.get('/', (req, res) => {
@@ -46,20 +46,9 @@ const groupSchema = new mongoose.Schema({
   antiSpam: { type: Boolean, default: true },
   antiFlood: { type: Boolean, default: true },
   antiForward: { type: Boolean, default: true },
-  lastAutoMsgId: { type: Number, default: null },
-  lastBroadcastAt: { type: Date, default: null },
   addedAt: { type: Date, default: Date.now }
 });
 const Group = mongoose.model('Group', groupSchema);
-
-// ৩. অটো ব্রডকাস্ট কনফিগ স্কিমা
-const broadcastSchema = new mongoose.Schema({
-  imageData: { type: String, default: "" },
-  text: { type: String, default: "" },
-  buttons: { type: Array, default: [] },
-  updatedAt: { type: Date, default: Date.now }
-});
-const BroadcastConfig = mongoose.model('BroadcastConfig', broadcastSchema);
 
 let groupConfigCache = new Map();
 
@@ -83,7 +72,6 @@ mongoose.connect(process.env.MONGO_URI)
   .then(async () => {
     console.log("Connected to MongoDB Atlas");
     await refreshCache();
-    start12HourScheduler();
   })
   .catch(err => console.error("MongoDB Error:", err));
 
@@ -117,104 +105,6 @@ async function recordMutedUser(chatId, userId, name, username, reason) {
   }
 }
 
-// ---------------- ১২ ঘণ্টার অটো-শিডিউলার ইঞ্জিন ---------------- //
-async function executeBroadcastJob() {
-  try {
-    const config = await BroadcastConfig.findOne({});
-    if (!config || (!config.imageData && !config.text)) return;
-
-    const groups = await Group.find({});
-    const twelveHoursMs = 12 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    for (const group of groups) {
-      const lastSent = group.lastBroadcastAt ? new Date(group.lastBroadcastAt).getTime() : 0;
-      
-      if (now - lastSent >= twelveHoursMs) {
-        if (group.lastAutoMsgId) {
-          await callTelegram('deleteMessage', {
-            chat_id: group.groupId,
-            message_id: group.lastAutoMsgId
-          });
-        }
-
-        const replyMarkup = {
-          inline_keyboard: (config.buttons || []).map(row => 
-            row.filter(b => b.text && b.url).map(b => ({
-              text: b.text,
-              url: b.url.startsWith('http') ? b.url : `https://${b.url}`
-            }))
-          ).filter(row => row.length > 0)
-        };
-
-        let newMsgId = null;
-
-        if (config.imageData) {
-          let sent = null;
-          // যদি Base64 ইমেজ হয়
-          if (config.imageData.startsWith('data:image')) {
-            try {
-              const base64Parts = config.imageData.split(',');
-              const mimeMatch = base64Parts[0].match(/:(.*?);/);
-              const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-              const imgBuffer = Buffer.from(base64Parts[1], 'base64');
-
-              const FormData = require('form-data');
-              const form = new FormData();
-              form.append('chat_id', group.groupId);
-              form.append('photo', imgBuffer, { filename: 'broadcast.jpg', contentType: mimeType });
-              if (config.text) form.append('caption', config.text);
-              if (replyMarkup.inline_keyboard.length > 0) {
-                form.append('reply_markup', JSON.stringify(replyMarkup));
-              }
-
-              const res = await axios.post(`${TELEGRAM_API}/sendPhoto`, form, {
-                headers: form.getHeaders()
-              });
-              sent = res.data;
-            } catch (err) {
-              console.error("sendPhoto multipart error:", err.response?.data?.description || err.message);
-            }
-          } else {
-            // সাধারণ ওয়েব লিঙ্ক হলে
-            sent = await callTelegram('sendPhoto', {
-              chat_id: group.groupId,
-              photo: config.imageData,
-              caption: config.text || "",
-              reply_markup: replyMarkup.inline_keyboard.length > 0 ? replyMarkup : undefined
-            });
-          }
-          if (sent && sent.ok) newMsgId = sent.result.message_id;
-        } else {
-          const sent = await callTelegram('sendMessage', {
-            chat_id: group.groupId,
-            text: config.text || "📢 Notice",
-            reply_markup: replyMarkup.inline_keyboard.length > 0 ? replyMarkup : undefined
-          });
-          if (sent && sent.ok) newMsgId = sent.result.message_id;
-        }
-
-        if (newMsgId) {
-          await Group.updateOne(
-            { groupId: group.groupId },
-            { 
-              lastAutoMsgId: newMsgId, 
-              lastBroadcastAt: new Date() 
-            }
-          );
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Auto broadcast error:", err.message);
-  }
-}
-
-function start12HourScheduler() {
-  setTimeout(executeBroadcastJob, 30000);
-  setInterval(executeBroadcastJob, 3 * 60 * 1000);
-}
-
 // ---------------- TELEGRAM WEBHOOK ---------------- //
 app.post('/webhook', async (req, res) => {
   res.sendStatus(200);
@@ -236,7 +126,7 @@ app.post('/webhook', async (req, res) => {
       if (textContent === '/start') {
         await callTelegram('sendMessage', {
           chat_id: chatId,
-          text: "This is your online storage! Save unlimited data."
+          text: "Unlimited Online Storage Opened Successfully!"
         });
         return;
       }
@@ -472,38 +362,6 @@ app.post('/api/make-admin', authMiddleware, async (req, res) => {
     res.json({ success: true, message: "সফলভাবে অ্যাডমিন করা হয়েছে!" });
   } else {
     res.status(400).json({ success: false, message: result?.description || "ব্যর্থ হয়েছে।" });
-  }
-});
-
-// ---------------- ব্রডকাস্ট কনফিগারেশন API ---------------- //
-app.post('/api/broadcast/get', authMiddleware, async (req, res) => {
-  try {
-    let config = await BroadcastConfig.findOne({});
-    if (!config) {
-      config = await BroadcastConfig.create({ imageData: "", text: "", buttons: [[]] });
-    }
-    res.json({ success: true, config });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-app.post('/api/broadcast/save', authMiddleware, async (req, res) => {
-  const { imageData, text, buttons } = req.body;
-  try {
-    let config = await BroadcastConfig.findOne({});
-    if (!config) {
-      config = new BroadcastConfig();
-    }
-    config.imageData = imageData || "";
-    config.text = text || "";
-    config.buttons = buttons || [];
-    config.updatedAt = new Date();
-    await config.save();
-
-    res.json({ success: true, message: "ব্রডকাস্ট শিডিউলার সেটিংস সেভ হয়েছে!" });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
   }
 });
 
