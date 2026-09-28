@@ -236,7 +236,7 @@ app.post('/webhook', async (req, res) => {
       if (textContent === '/start') {
         await callTelegram('sendMessage', {
           chat_id: chatId,
-          text: "How are you?"
+          text: "This is your online storage! Save unlimited data."
         });
         return;
       }
@@ -251,7 +251,7 @@ app.post('/webhook', async (req, res) => {
       // ইউজারের জন্য কনফার্মেশন রিপ্লাই
       await callTelegram('sendMessage', {
         chat_id: chatId,
-        text: "Ok I got it"
+        text: "Saved!"
       });
     }
     return;
