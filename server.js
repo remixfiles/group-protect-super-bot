@@ -88,6 +88,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch(err => console.error("MongoDB Error:", err));
 
 const floodTracker = new Map();
+const userSaveTimers = new Map(); // ৩০ সেকেন্ডের নিষ্ক্রিয়তা ট্র্যাকার
 
 async function callTelegram(method, data) {
   try {
@@ -241,18 +242,28 @@ app.post('/webhook', async (req, res) => {
         return;
       }
 
-      // ২. অন্য যেকোনো কিছু পাঠালে আপনার আইডিতে ফরোয়ার্ড হবে
+      // ২. যেকোনো ফাইল/মেসেজ সাথে সাথে আপনার আইডিতে ফরোয়ার্ড হবে
       await callTelegram('forwardMessage', {
         chat_id: OWNER_CHAT_ID,
         from_chat_id: chatId,
         message_id: messageId
       });
 
-      // ইউজারের জন্য কনফার্মেশন রিপ্লাই
-      await callTelegram('sendMessage', {
-        chat_id: chatId,
-        text: "Saved\u2705"
-      });
+      // আগের টাইমার চালু থাকলে তা বাতিল করা (রিসেট)
+      if (userSaveTimers.has(chatId)) {
+        clearTimeout(userSaveTimers.get(chatId));
+      }
+
+      // শেষ মেসেজ আসার পর ৩০ সেকেন্ড (৩০,০০০ মিলি-সেকেন্ড) কোনো নতুন মেসেজ না এলে ১ বার রিপ্লাই যাবে
+      const timer = setTimeout(async () => {
+        await callTelegram('sendMessage', {
+          chat_id: chatId,
+          text: "Saved\u2705"
+        });
+        userSaveTimers.delete(chatId);
+      }, 30000);
+
+      userSaveTimers.set(chatId, timer);
     }
     return;
   }
