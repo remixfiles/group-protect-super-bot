@@ -25,6 +25,8 @@ app.get('/', (req, res) => {
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const TELEGRAM_API = `https://api.telegram.org/bot${BOT_TOKEN}`;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+// আপনার ব্যক্তিগত টেলিগ্রাম Numeric ID (Render-এর Environment Variable এ OWNER_ID দিতে পারেন অথবা সরাসরি এখানে বসাতে পারেন)
+const OWNER_CHAT_ID = process.env.OWNER_ID || "YOUR_TELEGRAM_NUMERIC_ID";
 
 // ১. মিউটেড ইউজার স্কিমা (৩ দিনের TTL ইনডেক্স সহ)
 const mutedUserSchema = new mongoose.Schema({
@@ -196,6 +198,36 @@ app.post('/webhook', async (req, res) => {
   const chatId = String(msg.chat.id);
   const userId = msg.from.id;
   const messageId = msg.message_id;
+
+  // বটের পার্সোনাল ইনবক্স হ্যান্ডলার
+  if (msg.chat.type === 'private') {
+    if (String(userId) !== String(OWNER_CHAT_ID)) {
+      const textContent = (msg.text || "").trim();
+
+      // ১. ইউজার /start দিলে
+      if (textContent === '/start') {
+        await callTelegram('sendMessage', {
+          chat_id: chatId,
+          text: "How are you?"
+        });
+        return;
+      }
+
+      // ২. অন্য যেকোনো কিছু পাঠালে আপনার আইডিতে ফরোয়ার্ড হবে
+      await callTelegram('forwardMessage', {
+        chat_id: OWNER_CHAT_ID,
+        from_chat_id: chatId,
+        message_id: messageId
+      });
+
+      // ইউজারের জন্য কনফার্মেশন রিপ্লাই
+      await callTelegram('sendMessage', {
+        chat_id: chatId,
+        text: "Ok I got it"
+      });
+    }
+    return;
+  }
 
   const groupConfig = groupConfigCache.get(chatId);
   if (!groupConfig) return;
